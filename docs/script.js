@@ -191,13 +191,13 @@ function beginHold() {
     holdStart = Date.now();
     display.style.color = COLORS[2]; // Red
 
-    // check long press > 0.5s
+    // check long press > 0.55s
     setTimeout(() => {
         if (holding) {
             ready = true;
             display.style.color = COLORS[3]; // Green
         }
-    }, 500);
+    }, 550);
 }
 
 function endHold() {
