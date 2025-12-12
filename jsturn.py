@@ -1,0 +1,147 @@
+"""
+we have many button =>set a name , we will use name in python to explain what i wannt do
+開始檢查(I) =cheak
+新亂序(S) = new_case
+開始/停止(Space) = playing
+匯出csv = csv
+清除紀錄 = delete
+紀錄時間 =time
+該function 執行x秒 = use_time(x)
+停止目標button在做的事情=stop(x)
+全螢幕開始/結束 = full
+button 是否正在被按著 = touching(x)
+該 button 的任務是否還沒完成(function 還沒 return 或 跑完) = running
+there is one speacial function , it will return this funcion touched
+touched
+there are two speacial function, it will return Yes or No(1 or 0) if 長按  if 短按 .長按means one second at least , and then 手離開
+long
+short
+we also have some imformation , like 
+colar that may be used = colar
+if now full mode = full_mode
+history = hastory
+cheak_time = cheak_time
+user_playing_time = playing_time
+the colar to show on user_playing_time = playing_time_colar
+if start button touch, we need to know its mean user start to play or user played, he want save his playing time = start_or_end
+
+"""
+#init system variable
+full_mode=0
+cheaktime=15
+playing_time=0# ui design: time show at most to .2f ,not .3f  / if 0.014 then 0.01 . if 0.015 then 0.02 
+colar=["white","orange","red","green"]
+playing_time_colar=colar[0]
+history=[]
+start_or_end=0#get this variable, process , change data in the variable
+
+def touching(x):
+    return f"if {x} function be touching now"
+def running(x,y):
+    if "no argument y":
+        return f"if any {x}  function running (which mean do not return or finish) (yes=1)(no=0)"
+    else:
+        return f"if {x} function with {y} argument still running"
+def stop(x,y):
+    if "dont input y":
+        return f"stoped any argument {y} with button {x}"
+    else:
+        return f"stoped button {x} with argument {y}"
+def time(x):
+    while True:
+        usetime(0.001)
+        x+=0.001
+        if "code call stop(time())":
+            break
+    return "what time count"
+def usetime(x):
+    return f"this function waste {x} second"
+def touched(ob):
+    if "user dont input ob":
+        return "wrong"
+    return "if this button touched"
+
+def button_touch_time():
+    #單位 0.01 second
+    return 1
+def long(x):
+    if f"{x} function touched at least one second":
+        return 1
+def short(x):
+    if f"{x} function touched short than one second":
+        return 1
+
+#init button
+def new_case():
+    global playing_time_colar, colar , full_mode
+    stop(time)
+    stop(cheak)
+    playing_time_colar=colar[0]
+    full_mode=0
+    if running(full):
+        stop(full)
+        
+    return "give new case"
+def csv():
+    return "get data from history variable, csv downloaded"
+def delete():
+    global history
+    history=[]#no data internal
+
+def cheak():
+    if touched(cheak):
+        global cheaktime, full_mode ,playing_time_colar
+        playing_time_colar=[1]
+        full_mode=1
+        full()
+        cheaktime=15
+        while cheaktime>0:
+            usetime(1)
+            cheaktime-=1
+        #now cheaktime=0
+        playing_time_colar=colar[0]
+        stop(playing)
+    else:
+        return "this button did not be touch"
+def full():
+    global full_mode
+    if full_mode:
+        #imagine full mean a big button, this button work space is "any thingin the website but not button"
+        if touched(full):
+            playing()#touched(playing) will return 1 in this row
+            return "if full touched, it means playing button touched"
+        else:
+            return "this button did not be touch"
+    else:
+        return "now is not full mode"
+
+def playing():
+    global start_or_end,full_mode ,playing_time_colar,colar,history
+    if touched(playing):
+        
+        if start_or_end==0:
+            while not touching(playing):
+                if running(cheak):
+                    playing_time_colar=colar[1]
+                else:
+                    #if not runnning cheak
+                    playing_time_colar=colar[0]
+            while touching(playing):
+                playing_time_colar=colar[2]
+            if long(playing):
+                
+                stop(cheak)
+                #now start
+                time(playing_time)
+                start_or_end==1
+        else:
+            #start_or_end==1
+            #new end
+            stop(time,playing_time)
+            start_or_end==0
+            full_mode=0
+            history.append(playing_time)
+            
+    else:
+        return "this button did not be touch"
+ 

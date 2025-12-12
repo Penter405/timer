@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>魔方計時器</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="wrap">
+        <header>
+            <h1>魔方計時器</h1>
+            <div style="margin-left:auto;color:var(--muted);font-size:13px">
+                鍵盤：空白鍵開始/停止｜S 重新產生亂序｜I 開始檢查
+            </div>
+        </header>
+        <div class="grid">
+            <div class="card">
+                <div class="timer">
+                    <div id="inspection" style="color:var(--muted);font-size:14px">檢查：<span id="inspSec">-</span></div>
+                    <div style="height:8px"></div>
+                    <div class="time" id="display">00:00.00<span class="ms" id="ms"></span></div>
+                    <div class="controls">
+                        <button id="toggleInspection" class="small">開始檢查 (I)</button>
+                        <button id="newScramble" class="small">新亂序 (S)</button>
+                        <button id="startBtn" class="primary small">開始/停止 (Space)</button>
+                    </div>
+                    <div class="scramble" id="scramble">...</div>
+                    <div style="margin-top:10px;font-size:13px;color:var(--muted)">
+                        按下空白鍵或點擊 <strong>開始/停止</strong> 來計時。檢查時間 15 秒（可關閉）。
+                    </div>
+                </div>
+            </div>
+            <div class="card stats">
+                <div class="stat-row">
+                    <div>最近時間</div>
+                    <div id="last">-</div>
+                </div>
+                <div class="stat-row">
+                    <div>平均 (Ao5)</div>
+                    <div id="ao5">-</div>
+                </div>
+                <div class="stat-row">
+                    <div>平均 (Ao12)</div>
+                    <div id="ao12">-</div>
+                </div>
+                <div class="stat-row">
+                    <div>最佳</div>
+                    <div id="best">-</div>
+                </div>
+                <div class="stat-row">
+                    <div>最差</div>
+                    <div id="worst">-</div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:8px">
+                    <button id="exportCsv" class="small">匯出 CSV</button>
+                    <button id="clear" class="small">清除紀錄</button>
+                </div>
+                <div class="history" id="history"></div>
+            </div>
+        </div>
+        <footer>儲存：使用 localStorage（僅本機）。亂序產生器為 3x3 常用步驟。歡迎回報想要的功能。</footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
