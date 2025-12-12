@@ -1,63 +1,56 @@
 <!doctype html>
-
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>魔方計時器</title>
-  <style>
-    :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#94a3b8;--glass:rgba(255,255,255,0.03)}
-    *{box-sizing:border-box;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans CJK TC', 'Helvetica Neue', Arial}
-    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071021 0%, #081426 100%);color:#e6eef6}
-    .wrap{max-width:980px;margin:36px auto;padding:20px}
-    header{display:flex;align-items:center;gap:16px}
-    h1{margin:0;font-size:20px}.grid{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:18px}
-.card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 20px rgba(2,6,23,0.6)}
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>魔方計時器</title>
 
-.timer{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center}
-.time{font-size:72px;font-weight:600;letter-spacing:2px;transition:color 0.2s}
-.ms{font-size:20px;display:inline-block;vertical-align:top;margin-left:8px;color:var(--muted)}
-.controls{margin-top:16px;display:flex;gap:8px}
-button{background:var(--glass);border:1px solid rgba(255,255,255,0.04);color:inherit;padding:8px 12px;border-radius:8px;cursor:pointer}
-button.primary{background:linear-gradient(90deg,var(--accent),#8b5cf6);color:#021124;border:none;font-weight:600}
-.small{padding:6px 8px;font-size:14px}
+<style>
+  :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#94a3b8;--glass:rgba(255,255,255,0.03)}
+  *{box-sizing:border-box;font-family:Inter,system-ui}
+  html,body{height:100%;margin:0;background:#071021;color:#e6eef6}
+  .wrap{max-width:980px;margin:36px auto;padding:20px}
+  .grid{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:18px}
+  .card{background:var(--card);border-radius:12px;padding:16px}
+  .timer{text-align:center;padding:28px}
+  .time{font-size:72px;font-weight:600;letter-spacing:2px;transition:color .2s}
+  .ms{font-size:20px;margin-left:8px;color:var(--muted)}
+  button{background:var(--glass);border:1px solid rgba(255,255,255,.04);color:#fff;padding:8px 12px;border-radius:8px}
+  button.primary{background:linear-gradient(90deg,var(--accent),#8b5cf6);border:none;font-weight:600}
+  .scramble{font-family:monospace;background:#061022;padding:12px;border-radius:8px;margin-top:12px}
+  .stats .stat-row{display:flex;justify-content:space-between;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:8px}
+  .history{max-height:420px;overflow:auto;margin-top:12px}
+  .time-item{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid rgba(255,255,255,.05)}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}.time{font-size:56px}}
+</style>
 
-.scramble{font-family:monospace;background:#061022;padding:12px;border-radius:8px;margin-top:12px;color:#dbeafe}
-
-.stats{display:flex;flex-direction:column;gap:12px}
-.stat-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:8px}
-
-.history{max-height:420px;overflow:auto;margin-top:12px}
-.time-item{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)}
-footer{margin-top:18px;color:var(--muted);font-size:13px}
-
-@media(max-width:900px){.grid{grid-template-columns:1fr;}.time{font-size:56px}.wrap{padding:12px}}
-
-  </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>魔方計時器</h1>
-      <div style="margin-left:auto;color:var(--muted);font-size:13px">
-        鍵盤：空白鍵開始/停止｜C 開始檢查｜S 新亂序
-      </div>
-    </header><div class="grid">
+<div class="wrap">
+
+<header>
+  <h1>魔方計時器</h1>
+  <div style="margin-left:auto;color:var(--muted);font-size:13px">
+    空白鍵開始/停止｜C 開始檢查｜S 新亂序
+  </div>
+</header>
+
+<div class="grid">
   <div class="card">
     <div class="timer">
-      <div id="inspection" style="color:var(--muted);font-size:14px">檢查：<span id="inspSec">-</span></div>
-      <div style="height:8px"></div>
+      <div id="inspection" style="font-size:14px;color:var(--muted)">
+        檢查：<span id="inspSec">-</span>
+      </div>
+
       <div class="time" id="display">00:00.00<span class="ms" id="ms"></span></div>
-      <div class="controls">
+
+      <div class="controls" style="margin-top:16px;display:flex;gap:8px;justify-content:center">
         <button id="checkBtn" class="small">開始檢查 (C)</button>
         <button id="newScramble" class="small">新亂序 (S)</button>
         <button id="startBtn" class="primary small">開始/停止 (Space)</button>
       </div>
 
       <div class="scramble" id="scramble">...</div>
-      <div style="margin-top:10px;font-size:13px;color:var(--muted)">
-        按下空白鍵或點擊 <strong>開始/停止</strong> 來計時。檢查時間 15 秒（可關閉）。
-      </div>
     </div>
   </div>
 
@@ -67,164 +60,212 @@ footer{margin-top:18px;color:var(--muted);font-size:13px}
     <div class="stat-row"><div>平均 (Ao12)</div><div id="ao12">-</div></div>
     <div class="stat-row"><div>最佳</div><div id="best">-</div></div>
     <div class="stat-row"><div>最差</div><div id="worst">-</div></div>
+
     <div style="display:flex;gap:8px;margin-top:8px">
       <button id="exportCsv" class="small">匯出 CSV</button>
       <button id="clear" class="small">清除紀錄</button>
     </div>
+
     <div class="history" id="history"></div>
   </div>
 </div>
 
-<footer>儲存：使用 localStorage。亂序產生器為 3x3 常用步驟。</footer>
+</div>
 
-  </div>  <script>
-    // Utilities
-    function fmt(ms){
-      if(ms==null) return '-';
-      const m = Math.floor(ms/60000);
-      const s = Math.floor((ms%60000)/1000).toString().padStart(2,'0');
-      const c = Math.floor((ms%1000)/10).toString().padStart(2,'0');
-      return m>0?`${m}:${s}.${c}`:`${s}.${c}`;
-    }
-
-    // Scramble
-    const MOVES = ['U','D','L','R','F','B'];
-    const SUFFIX = ['', "'", '2'];
-    function genScramble(len=20){
-      let res=[], prev=null;
-      for(let i=0;i<len;i++){
-        let m; do{ m=MOVES[Math.floor(Math.random()*MOVES.length)]; }while(m===prev);
-        prev=m;
-        res.push(m + SUFFIX[Math.floor(Math.random()*SUFFIX.length)]);
-      }
-      return res.join(' ');
-    }
-
-    // Storage
-    const STORAGE_KEY='rubik_timer_sessions_v1';
-    function loadTimes(){ try{ const raw=localStorage.getItem(STORAGE_KEY); return raw?JSON.parse(raw):[]; }catch(e){return [];} }
-    function saveTimes(arr){ localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
-
-    // State
-    let times = loadTimes();
-    let running=false, startAt=0, intervalId=null;
-    let holding=false, ready=false;
-    let checking=false, checkSec=0, checkInterval=null;
-
-    // Mobile & long-press tracking
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    let spaceHeld=false;
-    let checkBtnPressStart = 0;
-
-    // Elements
-    const display=document.getElementById('display');
-    const scrambleEl=document.getElementById('scramble');
-    const inspSecEl=document.getElementById('inspSec');
-    const startBtn=document.getElementById('startBtn');
-    const checkBtn=const checkBtn=document.getElementById('checkBtn');
-checkBtn.addEventListener('mousedown',()=>{
-  checkHoldTimer=setTimeout(cancelCheck,1000);
-});
-checkBtn.addEventListener('mouseup',()=>{
-  if(checkHoldTimer){ clearTimeout(checkHoldTimer); checkHoldTimer=null; }
-});
-checkBtn.addEventListener('click',startCheck);
-
-checkBtn.addEventListener('touchstart',e=>{ e.preventDefault(); checkHoldTimer=setTimeout(cancelCheck,1000); });
-checkBtn.addEventListener('touchend',e=>{ e.preventDefault(); if(checkHoldTimer){ clearTimeout(checkHoldTimer); checkHoldTimer=null; } });
-
-document.getElementById('newScramble').addEventListener('click', newScramble)();
-    }
-
-    function renderStats(){
-      const historyEl=document.getElementById('history');
-      const lastEl=document.getElementById('last');
-      const ao5El=document.getElementById('ao5');
-      const ao12El=document.getElementById('ao12');
-      const bestEl=document.getElementById('best');
-      const worstEl=document.getElementById('worst');
-      historyEl.innerHTML='';
-      times.forEach(t=>{
-        const div=document.createElement('div');
-        div.className='time-item';
-        div.innerHTML=`<div style="font-weight:600">${fmt(t.ms)}</div>`;
-        historyEl.appendChild(div);
-      });
-      lastEl.textContent = times.length?fmt(times[0].ms):'-';
-      ao5El.textContent = times.length>=5?fmt(avg(times.slice(0,5).map(x=>x.ms))):'-';
-      ao12El.textContent = times.length>=12?fmt(avg(times.slice(0,12).map(x=>x.ms))):'-';
-      bestEl.textContent = times.length?fmt(Math.min(...times.map(x=>x.ms))):'-';
-      worstEl.textContent = times.length?fmt(Math.max(...times.map(x=>x.ms))):'-';
-    }
-    function avg(arr){ return Math.round(arr.reduce((a,b)=>a+b,0)/arr.length); }
-    function newScramble(){ scrambleEl.textContent=genScramble(20); }
-
-    // Hold / Start
-    function beginHold(){
-      if(running){ stopTimer(); return; }
-      holding=true; ready=false; display.style.color='red';
-      setTimeout(()=>{ if(holding){ ready=true; display.style.color='lime'; } },1000);
-    }
-    function endHold(){ if(holding){ holding=false; if(ready) startTimer(); else display.style.color='white'; } }
-
-    // Check 15s
-let checkHoldTimer=null;
-function startCheck(){
-  if(checking){
-    // already checking: warn
-    display.style.color='red';
-    return;
-  }
-  checking=true; checkSec=15;
-  inspSecEl.textContent=checkSec;
-  const countdown=setInterval(()=>{
-    checkSec--;
-    inspSecEl.textContent=checkSec;
-    if(checkSec<=0){ clearInterval(countdown); checking=false; newScramble(); display.style.color='white'; inspSecEl.textContent='-'; }
-  },1000);
+<script>
+// ---------- Utils ----------
+function fmt(ms){
+  if(ms==null) return '-';
+  const m = Math.floor(ms/60000);
+  const s = Math.floor((ms%60000)/1000).toString().padStart(2,'0');
+  const c = Math.floor((ms%1000)/10).toString().padStart(2,'0');
+  return m>0?`${m}:${s}.${c}`:`${s}.${c}`;
 }
 
-function cancelCheck(){
+const MOVES=['U','D','L','R','F','B'];
+const SUFFIX=['',"'","2"];
+function genScramble(len=20){
+  let out=[],prev=null;
+  for(let i=0;i<len;i++){
+    let m; do{m = MOVES[Math.floor(Math.random()*MOVES.length)]}while(m===prev);
+    prev = m;
+    out.push(m + SUFFIX[Math.floor(Math.random()*3)]);
+  }
+  return out.join(" ");
+}
+
+const STORAGE_KEY='rubik_timer_sessions_v1';
+function loadTimes(){ return JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]"); }
+function saveTimes(t){ localStorage.setItem(STORAGE_KEY,JSON.stringify(t)); }
+
+// ---------- State ----------
+let times = loadTimes();
+let running=false,startAt=0,intervalId=null;
+let holding=false,ready=false;
+let checking=false,checkTimer=null,remainingCheck=15,checkHoldTimer=null;
+
+// ---------- Elements ----------
+const display=document.getElementById("display");
+const scrambleEl=document.getElementById("scramble");
+const inspSecEl=document.getElementById("inspSec");
+const startBtn=document.getElementById("startBtn");
+const checkBtn=document.getElementById("checkBtn");
+
+// ---------- Timer ----------
+function renderTime(ms){
+  if(ms==null){
+    display.textContent="00:00.00";
+    return;
+  }
+  display.textContent = fmt(ms);
+}
+
+function startTimer(){
+  running=true;
+  display.style.color="white";
+  startAt=performance.now();
+  intervalId=setInterval(()=>{
+    renderTime(performance.now()-startAt);
+  },10);
+}
+
+function stopTimer(){
+  running=false;
+  clearInterval(intervalId);
+  const ms = Math.round(performance.now()-startAt);
+
+  times.unshift({ms,at:new Date().toLocaleString(),scramble:scrambleEl.textContent});
+  saveTimes(times);
+  renderStats();
+  display.style.color="white";
+}
+
+// ---------- Hold Logic ----------
+function beginHold(){
+  if(running){ stopTimer(); return; }
+  holding=true; ready=false; display.style.color="red";
+  setTimeout(()=>{ if(holding){ready=true;display.style.color="lime"} },1000);
+}
+
+function endHold(){
+  if(!holding) return;
+  holding=false;
+  if(ready){ startTimer(); }
+  else display.style.color="white";
+}
+
+// ---------- Check Logic (整合後版本) ----------
+function shortPressCheck(){
+  if(!checking){
+    checking=true;
+    remainingCheck=15;
+    inspSecEl.textContent=remainingCheck;
+    display.style.color="white";
+
+    clearInterval(checkTimer);
+    checkTimer=setInterval(()=>{
+      remainingCheck--;
+      inspSecEl.textContent=remainingCheck;
+      if(remainingCheck<=0){
+        clearInterval(checkTimer);
+        checking=false;
+        inspSecEl.textContent='-';
+        display.style.color="white";
+        newScramble();
+      }
+    },1000);
+
+  }else{
+    display.style.color="red"; // warning
+  }
+}
+
+function longPressCancelCheck(){
   checking=false;
+  clearInterval(checkTimer);
   inspSecEl.textContent='-';
   display.style.color='white';
 }
 
-// Events
-    startBtn.addEventListener('mousedown', beginHold);
-    startBtn.addEventListener('mouseup', endHold);
-    startBtn.addEventListener('touchstart', e=>{ e.preventDefault(); beginHold(); });
-    startBtn.addEventListener('touchend', e=>{ e.preventDefault(); endHold(); });
+function onCheckDown(e){
+  e.preventDefault();
+  checkHoldTimer=setTimeout(longPressCancelCheck,1000);
+}
 
-    // Space key with flag to avoid repeats
-    document.addEventListener('keydown', e=>{
-      if(e.code==='Space'){ e.preventDefault(); if(!spaceHeld){ spaceHeld=true; beginHold(); } }
-      if(e.code==='KeyC'){ e.preventDefault(); startCheck(); }
-      if(e.code==='KeyS'){ e.preventDefault(); newScramble(); }
-    });
-    document.addEventListener('keyup', e=>{ if(e.code==='Space'){ e.preventDefault(); if(spaceHeld){ spaceHeld=false; endHold(); } } });
+function onCheckUp(e){
+  e.preventDefault();
+  if(checkHoldTimer){
+    clearTimeout(checkHoldTimer);
+    checkHoldTimer=null;
+    shortPressCheck();
+  }
+}
 
-    // check button: support click + touch + longpress
-    checkBtn.addEventListener('mousedown', onCheckBtnDown);
-    checkBtn.addEventListener('mouseup', onCheckBtnUp);
-    checkBtn.addEventListener('touchstart', e=>{ e.preventDefault(); onCheckBtnDown(e); });
-    checkBtn.addEventListener('touchend', e=>{ e.preventDefault(); onCheckBtnUp(e); });
+// 綁定檢查按鈕
+checkBtn.addEventListener("mousedown", onCheckDown);
+checkBtn.addEventListener("mouseup", onCheckUp);
+checkBtn.addEventListener("touchstart", onCheckDown);
+checkBtn.addEventListener("touchend", onCheckUp);
 
-    // new scramble
-    document.getElementById('newScramble').addEventListener('click', ()=>{ newScramble(); cancelCheck(); renderTime(null); });
+// ---------- Shortcuts ----------
+document.addEventListener("keydown",e=>{
+  if(e.code==="Space"){ e.preventDefault(); beginHold(); }
+  if(e.code==="KeyC"){ e.preventDefault(); shortPressCheck(); }
+  if(e.code==="KeyS"){ e.preventDefault(); newScramble(); }
+});
 
-    // export csv & clear
-    document.getElementById('exportCsv').addEventListener('click', ()=>{
-      const header = 'index,ms,formatted,datetime,scramble\n';
-      const rows = times.slice().reverse().map((t,i)=>`${i+1},${t.ms},"${fmt(t.ms)}","${t.at}","${t.scramble}"`).join('\n');
-      const blob = new Blob([header+rows],{type:'text/csv'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href=url; a.download='rubik_times.csv'; a.click(); URL.revokeObjectURL(url);
-    });
+document.addEventListener("keyup",e=>{
+  if(e.code==="Space"){ e.preventDefault(); endHold(); }
+});
 
-    document.getElementById('clear').addEventListener('click', ()=>{ if(confirm('清除所有紀錄？')){ times=[]; saveTimes(times); renderStats(); } });
+// ---------- Buttons ----------
+startBtn.addEventListener("mousedown", beginHold);
+startBtn.addEventListener("mouseup", endHold);
+startBtn.addEventListener("touchstart", e=>{e.preventDefault(); beginHold();});
+startBtn.addEventListener("touchend", e=>{e.preventDefault(); endHold();});
 
-    // init
-    newScramble(); renderStats();
-  </script></body>
+document.getElementById("newScramble").addEventListener("click", ()=>{
+  newScramble();
+  longPressCancelCheck();
+});
+
+// ---------- Stats UI ----------
+function renderStats(){
+  const h=document.getElementById("history");
+  h.innerHTML = times.map(t=>`<div class="time-item"><div>${fmt(t.ms)}</div></div>`).join("");
+
+  document.getElementById("last").textContent = times.length?fmt(times[0].ms):"-";
+  document.getElementById("ao5").textContent = times.length>=5?fmt(avg(times.slice(0,5).map(t=>t.ms))):"-";
+  document.getElementById("ao12").textContent = times.length>=12?fmt(avg(times.slice(0,12).map(t=>t.ms))):"-";
+  document.getElementById("best").textContent = times.length?fmt(Math.min(...times.map(t=>t.ms))):"-";
+  document.getElementById("worst").textContent = times.length?fmt(Math.max(...times.map(t=>t.ms))):"-";
+}
+
+function avg(arr){ return Math.round(arr.reduce((a,b)=>a+b,0)/arr.length); }
+
+// ---------- CSV & Clear ----------
+document.getElementById("exportCsv").addEventListener("click",()=>{
+  const csv = 
+    "index,ms,formatted,datetime,scramble\n" +
+    times.map((t,i)=>`${i+1},${t.ms},${fmt(t.ms)},${t.at},"${t.scramble}"`).join("\n");
+  const blob=new Blob([csv],{type:"text/csv"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download="rubik_times.csv";a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("clear").addEventListener("click",()=>{
+  if(confirm("確定清除？")){
+    times=[]; saveTimes(times); renderStats();
+  }
+});
+
+// ---------- Init ----------
+function newScramble(){ scrambleEl.textContent=genScramble(20); }
+newScramble();
+renderStats();
+
+</script>
+</body>
 </html>
