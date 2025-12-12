@@ -176,7 +176,7 @@ function avg(arr) {
 
 function newScramble() {
     scrambleEl.textContent = genScramble(20);
-    fullMode = false; // Reset full mode on new case
+    stopPlaying(); // Reset full mode and holding
     display.style.color = COLORS[0]; // Reset to White
 }
 
@@ -317,17 +317,19 @@ function startInspection() {
             clearInterval(inspectionTimer);
             inspectionOn = false;
 
-            // Row 102: Reset color to White first
+            // Row 102: Reset color to White
             display.style.color = COLORS[0];
 
-            // Row 103: Stop playing (disable full mode & touch)
-            holding = false;
-            ready = false;
-            fullMode = false;
-
-            // Note: renderTime and newScramble are intentionally omitted to preserve state
+            // Row 103: Stop playing (disable full mode & touch & holding)
+            stopPlaying();
         }
     }, 1000);
+}
+
+function stopPlaying() {
+    holding = false;
+    ready = false;
+    fullMode = false;
 }
 
 // Inspection Toggle Button Long Press
@@ -338,6 +340,9 @@ function inspectionHoldStart(e) {
     inspectionHoldTimeout = setTimeout(() => {
         inspectionReady = true;
         resetInspection();
+        // New Logic: Long press reset
+        stopPlaying();
+        display.style.color = COLORS[0];
     }, 1000);
 }
 

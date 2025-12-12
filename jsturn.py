@@ -10,6 +10,7 @@ we have many button =>set a name , we will use name in python to explain what i 
 停止目標button在做的事情=stop(x)
 全螢幕開始/結束 = full
 button 是否正在被按著 = touching(x)
+按鈕被按下的時間 = touchtime(x)
 該 button 的任務是否還沒完成(function 還沒 return 或 跑完) = running
 there is one speacial function , it will return this funcion touched
 touched
@@ -34,6 +35,8 @@ colar=["white","orange","red","green"]
 playing_time_colar=colar[0]
 history=[]
 start_or_end=0#get this variable, process , change data in the variable
+def touchtime(x):
+    return f"{x} function be touch at {touchtime} second"
 
 def touching(x):
     return f"if {x} function be touching now"
@@ -93,6 +96,12 @@ def cheak():
         global cheaktime, full_mode ,playing_time_colar
         playing_time_colar=[1]
         full_mode=1
+        #it was touch once beacuse 'touched(cheak)' return 1 so 'if touched(cheak)' run
+        if touchtime(cheak)>=1:
+            #now touch second time
+            #and touchtime at least 1 second
+            playing_time_colar=colar[0]
+            stop(playing)
         full()
         cheaktime=15
         while cheaktime>0:
