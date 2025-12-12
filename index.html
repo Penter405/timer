@@ -7,7 +7,7 @@
 <style>
 :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#94a3b8;--glass:rgba(255,255,255,0.03)}
 *{box-sizing:border-box;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans CJK TC', 'Helvetica Neue', Arial}
-html,body{height:100%;margin:0;background:linear-gradient(180deg,#071021 0%, #081426 100%);color:#e6eef6}
+html,body{height:100%;margin:0;background:linear-gradient(180deg,#071021 0%, #081426 100%);color:#e6eef6;user-select:none;}
 .wrap{max-width:980px;margin:36px auto;padding:20px}
 header{display:flex;align-items:center;gap:16px}
 h1{margin:0;font-size:20px}
@@ -25,8 +25,6 @@ button.primary{background:linear-gradient(90deg,var(--accent),#8b5cf6);color:#02
 .stat-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:8px}
 .history{max-height:420px;overflow:auto;margin-top:12px}
 .time-item{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)}
-.tags{display:flex;gap:6px}
-.tag{font-size:12px;padding:4px 6px;border-radius:6px;background:rgba(255,255,255,0.03)}
 footer{margin-top:18px;color:var(--muted);font-size:13px}
 @media(max-width:900px){.grid{grid-template-columns:1fr;}.time{font-size:56px}.wrap{padding:12px}}
 </style>
@@ -97,7 +95,7 @@ function genScramble(len=20){
 }
 
 // --- 存檔 ---
-const STORAGE_KEY = 'rubik_timer_sessions_v1';
+const STORAGE_KEY = 'rubik_timer_sessions_v2';
 function loadTimes(){ try{ const raw = localStorage.getItem(STORAGE_KEY); return raw?JSON.parse(raw):[];}catch(e){return [];} }
 function saveTimes(arr){ localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
 
@@ -106,12 +104,14 @@ let times = loadTimes();
 let running=false, startAt=0, intervalId=null;
 let holdStart=null, ready=false, holding=false;
 let inspectionOn=false, inspectionTimer=null, inspectionSec=15;
-let inspectionHoldStart=null, inspectionReady=false;
+let inspectionHoldTimeout=null, inspectionReady=false;
 
 // --- 元件 ---
 const display = document.getElementById('display');
 const scrambleEl = document.getElementById('scramble');
 const inspEl = document.getElementById('inspSec');
+const startBtn = document.getElementById('startBtn');
+const toggleBtn = document.getElementById('toggleInspection');
 
 // --- 計時 ---
 function renderTime(ms){
@@ -203,16 +203,18 @@ function endHold(){
 let spaceHeld=false;
 document.addEventListener('keydown', e=>{
   if(e.code==='Space'){ e.preventDefault(); if(!spaceHeld){spaceHeld=true; beginHold();} }
+  if(e.code==='KeyS'){ e.preventDefault(); if(running) stopTimer(false); newScramble(); renderTime(null); resetInspection(); }
+  if(e.code==='KeyI'){ e.preventDefault(); startInspection(); }
 });
 document.addEventListener('keyup', e=>{
   if(e.code==='Space'){ e.preventDefault(); if(spaceHeld){spaceHeld=false; endHold();} }
 });
 
 // --- 按鈕事件 ---
-document.getElementById('startBtn').addEventListener('mousedown', beginHold);
-document.getElementById('startBtn').addEventListener('mouseup', endHold);
-document.getElementById('startBtn').addEventListener('touchstart', e=>{ e.preventDefault(); beginHold(); });
-document.getElementById('startBtn').addEventListener('touchend', e=>{ e.preventDefault(); endHold(); });
+startBtn.addEventListener('mousedown', beginHold);
+startBtn.addEventListener('mouseup', endHold);
+startBtn.addEventListener('touchstart', e=>{ e.preventDefault(); beginHold(); });
+startBtn.addEventListener('touchend', e=>{ e.preventDefault(); endHold(); });
 
 document.getElementById('newScramble').addEventListener('click', ()=>{
   if(running) stopTimer(false);
@@ -221,6 +223,7 @@ document.getElementById('newScramble').addEventListener('click', ()=>{
   resetInspection();
 });
 
+// --- 檢查倒數 ---
 function resetInspection(){
   inspectionOn=false;
   inspectionReady=false;
@@ -248,21 +251,17 @@ function startInspection(){
 }
 
 // --- 長按取消檢查 ---
-let inspectionHoldTimeout=null;
-const toggleBtn = document.getElementById('toggleInspection');
-
-function inspectionTouchStart(e){
+function inspectionHoldStart(e){
   e.preventDefault();
   if(!inspectionOn) startInspection();
   inspectionReady=false;
-  inspectionHoldStart=Date.now();
   inspectionHoldTimeout = setTimeout(()=>{
     inspectionReady=true;
     resetInspection();
   },1000);
 }
 
-function inspectionTouchEnd(e){
+function inspectionHoldEnd(e){
   e.preventDefault();
   clearTimeout(inspectionHoldTimeout);
   inspectionHoldTimeout=null;
@@ -271,26 +270,27 @@ function inspectionTouchEnd(e){
   }
 }
 
-toggleBtn.addEventListener('mousedown', inspectionTouchStart);
-toggleBtn.addEventListener('mouseup', inspectionTouchEnd);
-toggleBtn.addEventListener('touchstart', inspectionTouchStart);
-toggleBtn.addEventListener('touchend', inspectionTouchEnd);
+toggleBtn.addEventListener('mousedown', inspectionHoldStart);
+toggleBtn.addEventListener('mouseup', inspectionHoldEnd);
+toggleBtn.addEventListener('touchstart', inspectionHoldStart, {passive:false});
+toggleBtn.addEventListener('touchend', inspectionHoldEnd, {passive:false});
 
-// --- 支援除了按鈕外的區域觸發 start ---
-document.body.addEventListener('mousedown', e=>{
-  if(inspectionOn && !e.target.closest('button')) beginHold();
-});
-document.body.addEventListener('mouseup', e=>{
-  if(inspectionOn && !e.target.closest('button')) endHold();
-});
-document.body.addEventListener('touchstart', e=>{
-  if(inspectionOn && !e.target.closest('button')) beginHold();
-});
-document.body.addEventListener('touchend', e=>{
-  if(inspectionOn && !e.target.closest('button')) endHold();
-});
+// --- 支援非按鈕區域觸發 start（2C1a） ---
+function areaHoldStart(e){
+  if(inspectionOn && !e.target.closest('button')) { e.preventDefault(); beginHold(); }
+}
+function areaHoldEnd(e){
+  if(inspectionOn && !e.target.closest('button')) { e.preventDefault(); endHold(); }
+}
 
-newScramble(); renderStats();
+document.body.addEventListener('mousedown', areaHoldStart);
+document.body.addEventListener('mouseup', areaHoldEnd);
+document.body.addEventListener('touchstart', areaHoldStart, {passive:false});
+document.body.addEventListener('touchend', areaHoldEnd, {passive:false});
+
+// --- 初始化 ---
+newScramble();
+renderStats();
 </script>
 </body>
 </html>
