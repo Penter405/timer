@@ -1,4 +1,5 @@
 <!doctype html>
+
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8" />
@@ -10,29 +11,28 @@
     html,body{height:100%;margin:0;background:linear-gradient(180deg,#071021 0%, #081426 100%);color:#e6eef6}
     .wrap{max-width:980px;margin:36px auto;padding:20px}
     header{display:flex;align-items:center;gap:16px}
-    h1{margin:0;font-size:20px}
+    h1{margin:0;font-size:20px}.grid{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:18px}
+.card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 20px rgba(2,6,23,0.6)}
 
-    .grid{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:18px}
-    .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 20px rgba(2,6,23,0.6)}
+.timer{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center}
+.time{font-size:72px;font-weight:600;letter-spacing:2px;transition:color 0.2s}
+.ms{font-size:20px;display:inline-block;vertical-align:top;margin-left:8px;color:var(--muted)}
+.controls{margin-top:16px;display:flex;gap:8px}
+button{background:var(--glass);border:1px solid rgba(255,255,255,0.04);color:inherit;padding:8px 12px;border-radius:8px;cursor:pointer}
+button.primary{background:linear-gradient(90deg,var(--accent),#8b5cf6);color:#021124;border:none;font-weight:600}
+.small{padding:6px 8px;font-size:14px}
 
-    .timer{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center}
-    .time{font-size:72px;font-weight:600;letter-spacing:2px;transition:color 0.2s}
-    .ms{font-size:20px;display:inline-block;vertical-align:top;margin-left:8px;color:var(--muted)}
-    .controls{margin-top:16px;display:flex;gap:8px}
-    button{background:var(--glass);border:1px solid rgba(255,255,255,0.04);color:inherit;padding:8px 12px;border-radius:8px;cursor:pointer}
-    button.primary{background:linear-gradient(90deg,var(--accent),#8b5cf6);color:#021124;border:none;font-weight:600}
-    .small{padding:6px 8px;font-size:14px}
+.scramble{font-family:monospace;background:#061022;padding:12px;border-radius:8px;margin-top:12px;color:#dbeafe}
 
-    .scramble{font-family:monospace;background:#061022;padding:12px;border-radius:8px;margin-top:12px;color:#dbeafe}
+.stats{display:flex;flex-direction:column;gap:12px}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:8px}
 
-    .stats{display:flex;flex-direction:column;gap:12px}
-    .stat-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:8px}
+.history{max-height:420px;overflow:auto;margin-top:12px}
+.time-item{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)}
+footer{margin-top:18px;color:var(--muted);font-size:13px}
 
-    .history{max-height:420px;overflow:auto;margin-top:12px}
-    .time-item{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)}
-    footer{margin-top:18px;color:var(--muted);font-size:13px}
+@media(max-width:900px){.grid{grid-template-columns:1fr;}.time{font-size:56px}.wrap{padding:12px}}
 
-    @media(max-width:900px){.grid{grid-template-columns:1fr;}.time{font-size:56px}.wrap{padding:12px}}
   </style>
 </head>
 <body>
@@ -42,45 +42,42 @@
       <div style="margin-left:auto;color:var(--muted);font-size:13px">
         鍵盤：空白鍵開始/停止｜C 開始檢查｜S 新亂序
       </div>
-    </header>
-
-    <div class="grid">
-      <div class="card">
-        <div class="timer">
-          <div id="inspection" style="color:var(--muted);font-size:14px">檢查：<span id="inspSec">-</span></div>
-          <div style="height:8px"></div>
-          <div class="time" id="display">00:00.00<span class="ms" id="ms"></span></div>
-          <div class="controls">
-            <button id="checkBtn" class="small">開始檢查 (C)</button>
-            <button id="newScramble" class="small">新亂序 (S)</button>
-            <button id="startBtn" class="primary small">開始/停止 (Space)</button>
-          </div>
-
-          <div class="scramble" id="scramble">...</div>
-          <div style="margin-top:10px;font-size:13px;color:var(--muted)">
-            按下空白鍵或點擊 <strong>開始/停止</strong> 來計時。檢查時間 15 秒（可關閉）。
-          </div>
-        </div>
+    </header><div class="grid">
+  <div class="card">
+    <div class="timer">
+      <div id="inspection" style="color:var(--muted);font-size:14px">檢查：<span id="inspSec">-</span></div>
+      <div style="height:8px"></div>
+      <div class="time" id="display">00:00.00<span class="ms" id="ms"></span></div>
+      <div class="controls">
+        <button id="checkBtn" class="small">開始檢查 (C)</button>
+        <button id="newScramble" class="small">新亂序 (S)</button>
+        <button id="startBtn" class="primary small">開始/停止 (Space)</button>
       </div>
 
-      <div class="card stats">
-        <div class="stat-row"><div>最近時間</div><div id="last">-</div></div>
-        <div class="stat-row"><div>平均 (Ao5)</div><div id="ao5">-</div></div>
-        <div class="stat-row"><div>平均 (Ao12)</div><div id="ao12">-</div></div>
-        <div class="stat-row"><div>最佳</div><div id="best">-</div></div>
-        <div class="stat-row"><div>最差</div><div id="worst">-</div></div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button id="exportCsv" class="small">匯出 CSV</button>
-          <button id="clear" class="small">清除紀錄</button>
-        </div>
-        <div class="history" id="history"></div>
+      <div class="scramble" id="scramble">...</div>
+      <div style="margin-top:10px;font-size:13px;color:var(--muted)">
+        按下空白鍵或點擊 <strong>開始/停止</strong> 來計時。檢查時間 15 秒（可關閉）。
       </div>
     </div>
-
-    <footer>儲存：使用 localStorage。亂序產生器為 3x3 常用步驟。</footer>
   </div>
 
-  <script>
+  <div class="card stats">
+    <div class="stat-row"><div>最近時間</div><div id="last">-</div></div>
+    <div class="stat-row"><div>平均 (Ao5)</div><div id="ao5">-</div></div>
+    <div class="stat-row"><div>平均 (Ao12)</div><div id="ao12">-</div></div>
+    <div class="stat-row"><div>最佳</div><div id="best">-</div></div>
+    <div class="stat-row"><div>最差</div><div id="worst">-</div></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button id="exportCsv" class="small">匯出 CSV</button>
+      <button id="clear" class="small">清除紀錄</button>
+    </div>
+    <div class="history" id="history"></div>
+  </div>
+</div>
+
+<footer>儲存：使用 localStorage。亂序產生器為 3x3 常用步驟。</footer>
+
+  </div>  <script>
     // Utilities
     function fmt(ms){
       if(ms==null) return '-';
@@ -112,21 +109,31 @@
     let times = loadTimes();
     let running=false, startAt=0, intervalId=null;
     let holding=false, ready=false;
-    let checkTimer=null, checkSec=0, checking=false;
+    let checking=false, checkSec=0, checkInterval=null;
+
+    // Mobile & long-press tracking
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    let spaceHeld=false;
+    let checkBtnPressStart = 0;
 
     // Elements
     const display=document.getElementById('display');
     const scrambleEl=document.getElementById('scramble');
     const inspSecEl=document.getElementById('inspSec');
+    const startBtn=document.getElementById('startBtn');
+    const checkBtn=const checkBtn=document.getElementById('checkBtn');
+checkBtn.addEventListener('mousedown',()=>{
+  checkHoldTimer=setTimeout(cancelCheck,1000);
+});
+checkBtn.addEventListener('mouseup',()=>{
+  if(checkHoldTimer){ clearTimeout(checkHoldTimer); checkHoldTimer=null; }
+});
+checkBtn.addEventListener('click',startCheck);
 
-    // Timer
-    function renderTime(ms){ display.textContent = fmt(ms); }
-    function startTimer(){ if(!ready||running) return; running=true; startAt=Date.now(); intervalId=setInterval(()=>renderTime(Date.now()-startAt),16); display.style.color='white'; }
-    function stopTimer(save=true){ if(!running) return; running=false; clearInterval(intervalId); if(save) addTime(Date.now()-startAt); display.style.color='white'; }
+checkBtn.addEventListener('touchstart',e=>{ e.preventDefault(); checkHoldTimer=setTimeout(cancelCheck,1000); });
+checkBtn.addEventListener('touchend',e=>{ e.preventDefault(); if(checkHoldTimer){ clearTimeout(checkHoldTimer); checkHoldTimer=null; } });
 
-    function addTime(ms){
-      times.unshift({ms, at:new Date().toISOString(), scramble:scrambleEl.textContent});
-      saveTimes(times); renderStats(); newScramble();
+document.getElementById('newScramble').addEventListener('click', newScramble)();
     }
 
     function renderStats(){
@@ -155,43 +162,69 @@
     // Hold / Start
     function beginHold(){
       if(running){ stopTimer(); return; }
-      holding=true; ready=false;
-      display.style.color='red';
+      holding=true; ready=false; display.style.color='red';
       setTimeout(()=>{ if(holding){ ready=true; display.style.color='lime'; } },1000);
     }
-    function endHold(){
-      if(holding){ holding=false; if(ready) startTimer(); else display.style.color='white'; }
-    }
+    function endHold(){ if(holding){ holding=false; if(ready) startTimer(); else display.style.color='white'; } }
 
     // Check 15s
-    function startCheck(){
-      if(checking) return;
-      checking=true; checkSec=15;
-      inspSecEl.textContent=checkSec;
-      const countdown=setInterval(()=>{
-        checkSec--;
-        inspSecEl.textContent=checkSec;
-        if(checkSec<=0){ clearInterval(countdown); checking=false; newScramble(); display.style.color='white'; inspSecEl.textContent='-'; }
-      },1000);
-    }
+let checkHoldTimer=null;
+function startCheck(){
+  if(checking){
+    // already checking: warn
+    display.style.color='red';
+    return;
+  }
+  checking=true; checkSec=15;
+  inspSecEl.textContent=checkSec;
+  const countdown=setInterval(()=>{
+    checkSec--;
+    inspSecEl.textContent=checkSec;
+    if(checkSec<=0){ clearInterval(countdown); checking=false; newScramble(); display.style.color='white'; inspSecEl.textContent='-'; }
+  },1000);
+}
 
-    // Events
-    const startBtn=document.getElementById('startBtn');
+function cancelCheck(){
+  checking=false;
+  inspSecEl.textContent='-';
+  display.style.color='white';
+}
+
+// Events
     startBtn.addEventListener('mousedown', beginHold);
     startBtn.addEventListener('mouseup', endHold);
     startBtn.addEventListener('touchstart', e=>{ e.preventDefault(); beginHold(); });
     startBtn.addEventListener('touchend', e=>{ e.preventDefault(); endHold(); });
 
+    // Space key with flag to avoid repeats
     document.addEventListener('keydown', e=>{
-      if(e.code==='Space'){ e.preventDefault(); beginHold(); }
-      if(e.code==='KeyC'){ startCheck(); }
-      if(e.code==='KeyS'){ newScramble(); }
+      if(e.code==='Space'){ e.preventDefault(); if(!spaceHeld){ spaceHeld=true; beginHold(); } }
+      if(e.code==='KeyC'){ e.preventDefault(); startCheck(); }
+      if(e.code==='KeyS'){ e.preventDefault(); newScramble(); }
+    });
+    document.addEventListener('keyup', e=>{ if(e.code==='Space'){ e.preventDefault(); if(spaceHeld){ spaceHeld=false; endHold(); } } });
+
+    // check button: support click + touch + longpress
+    checkBtn.addEventListener('mousedown', onCheckBtnDown);
+    checkBtn.addEventListener('mouseup', onCheckBtnUp);
+    checkBtn.addEventListener('touchstart', e=>{ e.preventDefault(); onCheckBtnDown(e); });
+    checkBtn.addEventListener('touchend', e=>{ e.preventDefault(); onCheckBtnUp(e); });
+
+    // new scramble
+    document.getElementById('newScramble').addEventListener('click', ()=>{ newScramble(); cancelCheck(); renderTime(null); });
+
+    // export csv & clear
+    document.getElementById('exportCsv').addEventListener('click', ()=>{
+      const header = 'index,ms,formatted,datetime,scramble\n';
+      const rows = times.slice().reverse().map((t,i)=>`${i+1},${t.ms},"${fmt(t.ms)}","${t.at}","${t.scramble}"`).join('\n');
+      const blob = new Blob([header+rows],{type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='rubik_times.csv'; a.click(); URL.revokeObjectURL(url);
     });
 
-    document.getElementById('checkBtn').addEventListener('click', startCheck);
-    document.getElementById('newScramble').addEventListener('click', newScramble);
+    document.getElementById('clear').addEventListener('click', ()=>{ if(confirm('清除所有紀錄？')){ times=[]; saveTimes(times); renderStats(); } });
 
+    // init
     newScramble(); renderStats();
-  </script>
-</body>
+  </script></body>
 </html>
