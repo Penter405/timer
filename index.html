@@ -62,7 +62,7 @@
           </div>
 
           <div class="scramble" id="scramble">...</div>
-          <div style="margin-top:10px;font-size:13px;color:var(--muted)">按下空白鍵或點擊 <strong>開始/停止</strong> 來計時。檢查時間 15 秒（可關閉）。</div>
+          <div style="margin-top:10px;font-size:13px;color:var(--muted)">按下空白鍵或點擊 <strong>開始/停止</strong> 來計時。檢查時間 15 秒（可長按取消）。</div>
         </div>
       </div>
 
@@ -110,7 +110,7 @@
     }
 
     // --- 存檔 ---
-    const STORAGE_KEY = 'rubik_timer_sessions_v1';
+    const STORAGE_KEY = 'rubik_timer_sessions_v2';
     function loadTimes(){ try{ const raw = localStorage.getItem(STORAGE_KEY); return raw?JSON.parse(raw):[];}catch(e){return [];} }
     function saveTimes(arr){ localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
 
@@ -119,6 +119,7 @@
     let running=false, startAt=0, intervalId=null;
     let holdStart=null, ready=false, holding=false;
     let inspectionOn=false, inspectionTimer=null, inspectionSec=15;
+    let inspectionHoldStart=null, inspectionHolding=false, inspectionReady=false;
 
     // --- 元件 ---
     const display = document.getElementById('display');
@@ -182,20 +183,26 @@
       });
 
       lastEl.textContent = times.length?fmt(times[0].ms):'-';
-      ao5El.textContent = times.length>=5?fmt(avg(times.slice(0,5).map(x=>x.ms))):'-';
-      ao12El.textContent = times.length>=12?fmt(avg(times.slice(0,12).map(x=>x.ms))):'-';
+      ao5El.textContent = times.length>=5?fmt(wcaAverage(times.slice(0,5).map(x=>x.ms))):'-';
+      ao12El.textContent = times.length>=12?fmt(wcaAverage(times.slice(0,12).map(x=>x.ms))):'-';
       bestEl.textContent = times.length?fmt(Math.min(...times.map(x=>x.ms))):'-';
       worstEl.textContent = times.length?fmt(Math.max(...times.map(x=>x.ms))):'-';
     }
 
     function avg(arr){ return Math.round(arr.reduce((a,b)=>a+b,0)/arr.length); }
+    function wcaAverage(arr){
+      if(arr.length<3) return null;
+      const sorted=[...arr].sort((a,b)=>a-b);
+      sorted.shift();
+      sorted.pop();
+      return Math.round(sorted.reduce((a,b)=>a+b,0)/sorted.length);
+    }
     function newScramble(){ scrambleEl.textContent = genScramble(20); }
 
-    // --- 按住紅→綠計時 ---
+    // --- 長按計時 ---
     function beginHold(){
       if(running){ stopTimer(); return; }
-      holding=true;
-      ready=false;
+      holding=true; ready=false;
       holdStart=Date.now();
       display.style.color='red';
       setTimeout(()=>{
@@ -215,14 +222,19 @@
     let spaceHeld=false;
     document.addEventListener('keydown', e=>{
       if(e.code==='Space'){ e.preventDefault(); if(!spaceHeld){spaceHeld=true; beginHold();} }
+      if(e.code==='KeyI'){ e.preventDefault(); startInspection(); }
+      if(e.code==='KeyS'){ e.preventDefault(); newScramble(); renderTime(null); resetInspection(); }
     });
     document.addEventListener('keyup', e=>{
       if(e.code==='Space'){ e.preventDefault(); if(spaceHeld){spaceHeld=false; endHold();} }
     });
 
     // --- 按鈕事件 ---
-    document.getElementById('startBtn').addEventListener('mousedown', beginHold);
-    document.getElementById('startBtn').addEventListener('mouseup', endHold);
+    const startBtn = document.getElementById('startBtn');
+    startBtn.addEventListener('mousedown', beginHold);
+    startBtn.addEventListener('mouseup', endHold);
+    startBtn.addEventListener('touchstart', e=>{ e.preventDefault(); beginHold(); });
+    startBtn.addEventListener('touchend', e=>{ e.preventDefault(); endHold(); });
 
     document.getElementById('newScramble').addEventListener('click', ()=>{
       newScramble(); renderTime(null); resetInspection();
@@ -233,14 +245,22 @@
       inspectionOn=false;
       clearInterval(inspectionTimer);
       inspEl.textContent='-';
+      inspectionHolding=false;
+      inspectionReady=false;
     }
 
     function startInspection(){
       if(running) return;
-      resetInspection();
+      if(inspectionOn && !inspectionReady){
+        // 短按紅色警告，無重置
+        display.style.color='red';
+        return;
+      }
       inspectionOn=true;
       inspectionSec=15;
       inspEl.textContent=inspectionSec;
+      display.style.color='white';
+
       inspectionTimer = setInterval(()=>{
         inspectionSec--;
         inspEl.textContent=inspectionSec;
@@ -254,7 +274,49 @@
       },1000);
     }
 
-    document.getElementById('toggleInspection').addEventListener('click', startInspection);
+    // --- 長按取消檢查 ---
+    const toggleInspectionBtn = document.getElementById('toggleInspection');
+    toggleInspectionBtn.addEventListener('mousedown', startInspectionHold);
+    toggleInspectionBtn.addEventListener('mouseup', endInspectionHold);
+    toggleInspectionBtn.addEventListener('touchstart', e=>{ e.preventDefault(); startInspectionHold(); });
+    toggleInspectionBtn.addEventListener('touchend', e=>{ e.preventDefault(); endInspectionHold(); });
+
+    function startInspectionHold(){
+      if(!inspectionOn) return;
+      inspectionHolding=true;
+      inspectionReady=false;
+      inspectionHoldStart=Date.now();
+      setTimeout(()=>{
+        if(inspectionHolding){
+          inspectionReady=true;
+          resetInspection();
+        }
+      },1000);
+    }
+
+    function endInspectionHold(){
+      inspectionHolding=false;
+      if(inspectionReady) resetInspection();
+    }
+
+    // --- 匯出 CSV ---
+    document.getElementById('exportCsv').addEventListener('click', ()=>{
+      if(!times.length) return;
+      let csv = "時間(ms),記錄時間,亂序\n";
+      times.forEach(t=>{ csv+=`${t.ms},${t.at},${t.scramble}\n`; });
+      const blob = new Blob([csv],{type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href=url;
+      a.download='rubik_times.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // --- 清除 ---
+    document.getElementById('clear').addEventListener('click', ()=>{
+      times=[]; saveTimes(times); renderStats(); renderTime(null); resetInspection();
+    });
 
     newScramble(); renderStats();
   </script>
