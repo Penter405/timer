@@ -110,7 +110,7 @@
     }
 
     // --- 存檔 ---
-    const STORAGE_KEY = 'rubik_timer_sessions_v2';
+    const STORAGE_KEY = 'rubik_timer_sessions_v3';
     function loadTimes(){ try{ const raw = localStorage.getItem(STORAGE_KEY); return raw?JSON.parse(raw):[];}catch(e){return [];} }
     function saveTimes(arr){ localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
 
@@ -119,7 +119,7 @@
     let running=false, startAt=0, intervalId=null;
     let holdStart=null, ready=false, holding=false;
     let inspectionOn=false, inspectionTimer=null, inspectionSec=15;
-    let inspectionHoldStart=null, inspectionHolding=false, inspectionReady=false;
+    let inspectionHolding=false, inspectionReady=false;
 
     // --- 元件 ---
     const display = document.getElementById('display');
@@ -162,7 +162,7 @@
       });
       saveTimes(times);
       renderStats();
-      newScramble();
+      newScramble(false); // false: 不重置使用者顯示
       resetInspection();
     }
 
@@ -193,11 +193,14 @@
     function wcaAverage(arr){
       if(arr.length<3) return null;
       const sorted=[...arr].sort((a,b)=>a-b);
-      sorted.shift();
-      sorted.pop();
+      sorted.shift(); sorted.pop();
       return Math.round(sorted.reduce((a,b)=>a+b,0)/sorted.length);
     }
-    function newScramble(){ scrambleEl.textContent = genScramble(20); }
+
+    function newScramble(resetDisplay=true){
+      scrambleEl.textContent = genScramble(20);
+      if(resetDisplay && !running) renderTime(null);
+    }
 
     // --- 長按計時 ---
     function beginHold(){
@@ -223,7 +226,7 @@
     document.addEventListener('keydown', e=>{
       if(e.code==='Space'){ e.preventDefault(); if(!spaceHeld){spaceHeld=true; beginHold();} }
       if(e.code==='KeyI'){ e.preventDefault(); startInspection(); }
-      if(e.code==='KeyS'){ e.preventDefault(); newScramble(); renderTime(null); resetInspection(); }
+      if(e.code==='KeyS'){ e.preventDefault(); newScramble(); }
     });
     document.addEventListener('keyup', e=>{
       if(e.code==='Space'){ e.preventDefault(); if(spaceHeld){spaceHeld=false; endHold();} }
@@ -236,26 +239,21 @@
     startBtn.addEventListener('touchstart', e=>{ e.preventDefault(); beginHold(); });
     startBtn.addEventListener('touchend', e=>{ e.preventDefault(); endHold(); });
 
-    document.getElementById('newScramble').addEventListener('click', ()=>{
-      newScramble(); renderTime(null); resetInspection();
-    });
+    document.getElementById('newScramble').addEventListener('click', ()=>{ newScramble(false); });
 
     // --- 檢查功能 ---
     function resetInspection(){
       inspectionOn=false;
       clearInterval(inspectionTimer);
       inspEl.textContent='-';
+      display.style.color='white';
       inspectionHolding=false;
       inspectionReady=false;
     }
 
     function startInspection(){
       if(running) return;
-      if(inspectionOn && !inspectionReady){
-        // 短按紅色警告，無重置
-        display.style.color='red';
-        return;
-      }
+      if(inspectionOn) return; // 已啟動倒數，不重啟
       inspectionOn=true;
       inspectionSec=15;
       inspEl.textContent=inspectionSec;
@@ -267,9 +265,7 @@
         if(inspectionSec<=0){
           clearInterval(inspectionTimer);
           inspectionOn=false;
-          newScramble();
-          renderTime(null);
-          display.style.color='white';
+          newScramble(false);
         }
       },1000);
     }
@@ -285,7 +281,6 @@
       if(!inspectionOn) return;
       inspectionHolding=true;
       inspectionReady=false;
-      inspectionHoldStart=Date.now();
       setTimeout(()=>{
         if(inspectionHolding){
           inspectionReady=true;
@@ -293,7 +288,6 @@
         }
       },1000);
     }
-
     function endInspectionHold(){
       inspectionHolding=false;
       if(inspectionReady) resetInspection();
@@ -318,7 +312,7 @@
       times=[]; saveTimes(times); renderStats(); renderTime(null); resetInspection();
     });
 
-    newScramble(); renderStats();
+    newScramble(false); renderStats();
   </script>
 </body>
 </html>
