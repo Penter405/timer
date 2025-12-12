@@ -1,170 +1,189 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>魔方計時器</title>
-  <style>
-    :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#94a3b8;--glass:rgba(255,255,255,0.03)}
-    *{box-sizing:border-box;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans CJK TC', 'Helvetica Neue', Arial}
-    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071021 0%, #081426 100%);color:#e6eef6}
-    .wrap{max-width:980px;margin:36px auto;padding:20px}
-    header{display:flex;align-items:center;gap:16px}
-    h1{margin:0;font-size:20px}
-
-    .grid{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:18px}
-    .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 20px rgba(2,6,23,0.6)}
-
-    .timer{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center}
-    .time{font-size:72px;font-weight:600;letter-spacing:2px;transition:color 0.2s}
-    .ms{font-size:20px;display:inline-block;vertical-align:top;margin-left:8px;color:var(--muted)}
-    .controls{margin-top:16px;display:flex;gap:8px}
-    button{background:var(--glass);border:1px solid rgba(255,255,255,0.04);color:inherit;padding:8px 12px;border-radius:8px;cursor:pointer}
-    button.primary{background:linear-gradient(90deg,var(--accent),#8b5cf6);color:#021124;border:none;font-weight:600}
-    .small{padding:6px 8px;font-size:14px}
-
-    .scramble{font-family:monospace;background:#061022;padding:12px;border-radius:8px;margin-top:12px;color:#dbeafe}
-
-    .stats{display:flex;flex-direction:column;gap:12px}
-    .stat-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:8px}
-
-    .history{max-height:420px;overflow:auto;margin-top:12px}
-    .time-item{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)}
-    .tags{display:flex;gap:6px}
-    .tag{font-size:12px;padding:4px 6px;border-radius:6px;background:rgba(255,255,255,0.03)}
-
-    footer{margin-top:18px;color:var(--muted);font-size:13px}
-
-    @media(max-width:900px){.grid{grid-template-columns:1fr;}.time{font-size:56px}.wrap{padding:12px}}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>魔方計時器</title>
+<style>
+:root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#94a3b8;--glass:rgba(255,255,255,0.03)}
+*{box-sizing:border-box;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans CJK TC', 'Helvetica Neue', Arial}
+html,body{height:100%;margin:0;background:linear-gradient(180deg,#071021 0%, #081426 100%);color:#e6eef6}
+.wrap{max-width:980px;margin:36px auto;padding:20px}
+header{display:flex;align-items:center;gap:16px}
+h1{margin:0;font-size:20px}
+.grid{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:18px}
+.card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 20px rgba(2,6,23,0.6)}
+.timer{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center}
+.time{font-size:72px;font-weight:600;letter-spacing:2px;transition:color 0.2s}
+.ms{font-size:20px;display:inline-block;vertical-align:top;margin-left:8px;color:var(--muted)}
+.controls{margin-top:16px;display:flex;gap:8px}
+button{background:var(--glass);border:1px solid rgba(255,255,255,0.04);color:inherit;padding:8px 12px;border-radius:8px;cursor:pointer}
+button.primary{background:linear-gradient(90deg,var(--accent),#8b5cf6);color:#021124;border:none;font-weight:600}
+.small{padding:6px 8px;font-size:14px}
+.scramble{font-family:monospace;background:#061022;padding:12px;border-radius:8px;margin-top:12px;color:#dbeafe}
+.stats{display:flex;flex-direction:column;gap:12px}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:8px}
+.history{max-height:420px;overflow:auto;margin-top:12px}
+.time-item{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)}
+.tags{display:flex;gap:6px}
+.tag{font-size:12px;padding:4px 6px;border-radius:6px;background:rgba(255,255,255,0.03)}
+footer{margin-top:18px;color:var(--muted);font-size:13px}
+@media(max-width:900px){.grid{grid-template-columns:1fr;}.time{font-size:56px}.wrap{padding:12px}}
+</style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <h1>魔方計時器</h1>
-    <div style="margin-left:auto;color:var(--muted);font-size:13px">
-      鍵盤：空白鍵開始/停止｜S 新亂序｜I 開始檢查
+<header>
+  <h1>魔方計時器</h1>
+  <div style="margin-left:auto;color:var(--muted);font-size:13px">
+    鍵盤：空白鍵開始/停止｜S 重新產生亂序｜I 開始檢查
+  </div>
+</header>
+<div class="grid">
+<div class="card">
+  <div class="timer">
+    <div id="inspection" style="color:var(--muted);font-size:14px">檢查：<span id="inspSec">-</span></div>
+    <div style="height:8px"></div>
+    <div class="time" id="display">00:00.00<span class="ms" id="ms"></span></div>
+    <div class="controls">
+      <button id="toggleInspection" class="small">開始檢查 (I)</button>
+      <button id="newScramble" class="small">新亂序 (S)</button>
+      <button id="startBtn" class="primary small">開始/停止 (Space)</button>
     </div>
-  </header>
-
-  <div class="grid">
-    <div class="card">
-      <div class="timer">
-        <div id="inspection" style="color:var(--muted);font-size:14px">
-          檢查：<span id="inspSec">-</span>
-        </div>
-        <div style="height:8px"></div>
-        <div class="time" id="display">00:00.00<span class="ms" id="ms"></span></div>
-        <div class="controls">
-          <button id="toggleInspection" class="small">開始檢查 (I)</button>
-          <button id="newScramble" class="small">新亂序 (S)</button>
-          <button id="startBtn" class="primary small">開始/停止 (Space)</button>
-        </div>
-
-        <div class="scramble" id="scramble">...</div>
-        <div style="margin-top:10px;font-size:13px;color:var(--muted)">
-          按下空白鍵或點擊 <strong>開始/停止</strong> 來計時。檢查時間 15 秒（可關閉）。
-        </div>
-      </div>
-    </div>
-
-    <div class="card stats">
-      <div class="stat-row"><div>最近時間</div><div id="last">-</div></div>
-      <div class="stat-row"><div>平均 (Ao5)</div><div id="ao5">-</div></div>
-      <div class="stat-row"><div>平均 (Ao12)</div><div id="ao12">-</div></div>
-      <div class="stat-row"><div>最佳</div><div id="best">-</div></div>
-      <div class="stat-row"><div>最差</div><div id="worst">-</div></div>
-
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button id="exportCsv" class="small">匯出 CSV</button>
-        <button id="clear" class="small">清除紀錄</button>
-      </div>
-
-      <div class="history" id="history"></div>
+    <div class="scramble" id="scramble">...</div>
+    <div style="margin-top:10px;font-size:13px;color:var(--muted)">
+      按下空白鍵或點擊 <strong>開始/停止</strong> 來計時。檢查時間 15 秒（可關閉）。
     </div>
   </div>
-
-  <footer>儲存：使用 localStorage（僅本機）。亂序產生器為 3x3 常用步驟。歡迎回報想要的功能。</footer>
+</div>
+<div class="card stats">
+  <div class="stat-row"><div>最近時間</div><div id="last">-</div></div>
+  <div class="stat-row"><div>平均 (Ao5)</div><div id="ao5">-</div></div>
+  <div class="stat-row"><div>平均 (Ao12)</div><div id="ao12">-</div></div>
+  <div class="stat-row"><div>最佳</div><div id="best">-</div></div>
+  <div class="stat-row"><div>最差</div><div id="worst">-</div></div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button id="exportCsv" class="small">匯出 CSV</button>
+    <button id="clear" class="small">清除紀錄</button>
+  </div>
+  <div class="history" id="history"></div>
+</div>
+</div>
+<footer>儲存：使用 localStorage（僅本機）。亂序產生器為 3x3 常用步驟。歡迎回報想要的功能。</footer>
 </div>
 
 <script>
+// --- 工具 ---
+function fmt(ms){
+  if(ms==null) return '-';
+  const minutes = Math.floor(ms/60000);
+  const seconds = Math.floor((ms%60000)/1000).toString().padStart(2,'0');
+  const cent = Math.floor((ms%1000)/10).toString().padStart(2,'0');
+  return minutes>0 ? `${minutes}:${seconds}.${cent}` : `${seconds}.${cent}`;
+}
+
+// --- 亂序產生器 ---
 const MOVES = ['U','D','L','R','F','B'];
 const SUFFIX = ['', "'", '2'];
 function genScramble(len=20){
   let res=[], prev=null;
   for(let i=0;i<len;i++){
     let m;
-    do{ m=MOVES[Math.floor(Math.random()*MOVES.length)]; } while(m===prev);
+    do{ m = MOVES[Math.floor(Math.random()*MOVES.length)]; } while(m===prev);
     prev=m;
     res.push(m + SUFFIX[Math.floor(Math.random()*SUFFIX.length)]);
   }
   return res.join(' ');
 }
 
-const STORAGE_KEY = 'rubik_timer_sessions_v2';
-let times = JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');
+// --- 存檔 ---
+const STORAGE_KEY = 'rubik_timer_sessions_v1';
+function loadTimes(){ try{ const raw = localStorage.getItem(STORAGE_KEY); return raw?JSON.parse(raw):[];}catch(e){return [];} }
+function saveTimes(arr){ localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
 
+// --- 狀態 ---
+let times = loadTimes();
 let running=false, startAt=0, intervalId=null;
-let holding=false, ready=false, holdStart=null;
+let holdStart=null, ready=false, holding=false;
 let inspectionOn=false, inspectionTimer=null, inspectionSec=15;
-let inspectionHold=false, inspectionReady=false;
-let originalDisplay='00:00.00';
+let inspectionHoldStart=null, inspectionReady=false;
 
+// --- 元件 ---
 const display = document.getElementById('display');
 const scrambleEl = document.getElementById('scramble');
 const inspEl = document.getElementById('inspSec');
 
-function fmt(ms){
-  if(ms==null) return '-';
-  const min=Math.floor(ms/60000);
-  const sec=Math.floor((ms%60000)/1000).toString().padStart(2,'0');
-  const cent=Math.floor((ms%1000)/10).toString().padStart(2,'0');
-  return min>0 ? `${min}:${sec}.${cent}` : `${sec}.${cent}`;
-}
-
+// --- 計時 ---
 function renderTime(ms){
-  if(ms==null) display.textContent=originalDisplay;
-  else display.textContent=fmt(ms);
+  if(ms==null){ display.textContent='00:00.00'; return; }
+  const minutes = Math.floor(ms/60000);
+  const seconds = Math.floor((ms%60000)/1000).toString().padStart(2,'0');
+  const cent = Math.floor((ms%1000)/10).toString().padStart(2,'0');
+  display.textContent = minutes>0 ? `${minutes}:${seconds}.${cent}` : `${seconds}.${cent}`;
 }
 
-function saveTimes(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(times)); }
-function avg(arr){ return Math.round(arr.reduce((a,b)=>a+b,0)/arr.length); }
+function startTimer(){
+  if(!ready || running) return;
+  running=true;
+  startAt = Date.now();
+  intervalId = setInterval(()=> renderTime(Date.now()-startAt),16);
+  display.style.color='white';
+  clearInterval(inspectionTimer);
+  inspectionOn=false;
+  inspEl.textContent='-';
+}
 
-function renderStats(){
-  document.getElementById('history').innerHTML='';
-  times.forEach(t=>{
-    const div=document.createElement('div');
-    div.className='time-item';
-    div.innerHTML=`<div style="font-weight:600">${fmt(t.ms)}</div>`;
-    document.getElementById('history').appendChild(div);
-  });
-  document.getElementById('last').textContent=times[0]?fmt(times[0].ms):'-';
-  document.getElementById('ao5').textContent=times.length>=5?fmt(avg(times.slice(0,5).map(x=>x.ms))):'-';
-  document.getElementById('ao12').textContent=times.length>=12?fmt(avg(times.slice(0,12).map(x=>x.ms))):'-';
-  document.getElementById('best').textContent=times.length?fmt(Math.min(...times.map(x=>x.ms))):'-';
-  document.getElementById('worst').textContent=times.length?fmt(Math.max(...times.map(x=>x.ms))):'-';
+function stopTimer(save=true){
+  if(!running) return;
+  running=false;
+  clearInterval(intervalId);
+  if(save) addTime(Date.now()-startAt);
+  display.style.color='white';
 }
 
 function addTime(ms){
-  times.unshift({ms:ms, at:new Date().toISOString(), scramble:scrambleEl.textContent});
-  saveTimes();
+  times.unshift({
+    ms: ms,
+    at: new Date().toISOString(),
+    scramble: scrambleEl.textContent
+  });
+  saveTimes(times);
   renderStats();
   newScramble();
   resetInspection();
 }
 
-function newScramble(user=false){
-  scrambleEl.textContent = genScramble(20);
-  if(user){ // 若 user 點擊 newScramble，停止計時且不入歷史
-    if(running){ stopTimer(false); }
-    display.style.color='white';
-  }
-  resetInspection();
+function renderStats(){
+  const historyEl = document.getElementById('history');
+  const lastEl = document.getElementById('last');
+  const ao5El = document.getElementById('ao5');
+  const ao12El = document.getElementById('ao12');
+  const bestEl = document.getElementById('best');
+  const worstEl = document.getElementById('worst');
+
+  historyEl.innerHTML='';
+  times.forEach(t=>{
+    const div = document.createElement('div');
+    div.className='time-item';
+    div.innerHTML=`<div style="font-weight:600">${fmt(t.ms)}</div>`;
+    historyEl.appendChild(div);
+  });
+
+  lastEl.textContent = times.length?fmt(times[0].ms):'-';
+  ao5El.textContent = times.length>=5?fmt(avg(times.slice(0,5).map(x=>x.ms))):'-';
+  ao12El.textContent = times.length>=12?fmt(avg(times.slice(0,12).map(x=>x.ms))):'-';
+  bestEl.textContent = times.length?fmt(Math.min(...times.map(x=>x.ms))):'-';
+  worstEl.textContent = times.length?fmt(Math.max(...times.map(x=>x.ms))):'-';
 }
 
+function avg(arr){ return Math.round(arr.reduce((a,b)=>a+b,0)/arr.length); }
+function newScramble(){ scrambleEl.textContent = genScramble(20); }
+
+// --- 長按 start ---
 function beginHold(){
-  if(running){ stopTimer(); return; }
-  holding=true; ready=false;
+  if(running){ stopTimer(false); return; }
+  holding=true;
+  ready=false;
   holdStart=Date.now();
   display.style.color='red';
   setTimeout(()=>{
@@ -180,25 +199,30 @@ function endHold(){
   }
 }
 
-function startTimer(){
-  if(!ready || running) return;
-  running=true;
-  startAt=Date.now();
-  intervalId=setInterval(()=>renderTime(Date.now()-startAt),16);
-  display.style.color='white';
-  resetInspection();
-}
+// --- 空白鍵 ---
+let spaceHeld=false;
+document.addEventListener('keydown', e=>{
+  if(e.code==='Space'){ e.preventDefault(); if(!spaceHeld){spaceHeld=true; beginHold();} }
+});
+document.addEventListener('keyup', e=>{
+  if(e.code==='Space'){ e.preventDefault(); if(spaceHeld){spaceHeld=false; endHold();} }
+});
 
-function stopTimer(save=true){
-  if(!running) return;
-  running=false;
-  clearInterval(intervalId);
-  if(save) addTime(Date.now()-startAt);
-}
+// --- 按鈕事件 ---
+document.getElementById('startBtn').addEventListener('mousedown', beginHold);
+document.getElementById('startBtn').addEventListener('mouseup', endHold);
+document.getElementById('startBtn').addEventListener('touchstart', e=>{ e.preventDefault(); beginHold(); });
+document.getElementById('startBtn').addEventListener('touchend', e=>{ e.preventDefault(); endHold(); });
+
+document.getElementById('newScramble').addEventListener('click', ()=>{
+  if(running) stopTimer(false);
+  newScramble();
+  renderTime(null);
+  resetInspection();
+});
 
 function resetInspection(){
   inspectionOn=false;
-  inspectionHold=false;
   inspectionReady=false;
   clearInterval(inspectionTimer);
   inspEl.textContent='-';
@@ -207,87 +231,65 @@ function resetInspection(){
 function startInspection(){
   if(running) return;
   resetInspection();
-  inspectionOn=true; inspectionSec=15;
+  inspectionOn=true;
+  inspectionSec=15;
   inspEl.textContent=inspectionSec;
-  originalDisplay = display.textContent;
-  inspectionTimer=setInterval(()=>{
+  inspectionTimer = setInterval(()=>{
     inspectionSec--;
     inspEl.textContent=inspectionSec;
     if(inspectionSec<=0){
       clearInterval(inspectionTimer);
       inspectionOn=false;
-      renderTime(null); // user 計時重設
+      renderTime(null);
       newScramble();
+      display.style.color='white';
     }
   },1000);
 }
 
-// --- 監聽長按檢查取消 ---
-let inspPressTimer=null;
-document.getElementById('toggleInspection').addEventListener('mousedown',()=>{
-  if(!inspectionOn) startInspection();
-  else{
-    display.style.color='red';
-    inspectionHold=true;
-    inspPressTimer=setTimeout(()=>{
-      inspectionReady=true;
-    },1000);
-  }
-});
-document.getElementById('toggleInspection').addEventListener('mouseup',()=>{
-  clearTimeout(inspPressTimer);
-  if(inspectionReady){ resetInspection(); inspectionReady=false; }
-  inspectionHold=false; display.style.color='white';
-});
+// --- 長按取消檢查 ---
+let inspectionHoldTimeout=null;
+const toggleBtn = document.getElementById('toggleInspection');
 
-// touch 支援
-document.getElementById('toggleInspection').addEventListener('touchstart',e=>{
+function inspectionTouchStart(e){
   e.preventDefault();
   if(!inspectionOn) startInspection();
-  else{
-    display.style.color='red';
-    inspectionHold=true;
-    inspPressTimer=setTimeout(()=>{
-      inspectionReady=true;
-    },1000);
-  }
-});
-document.getElementById('toggleInspection').addEventListener('touchend',e=>{
+  inspectionReady=false;
+  inspectionHoldStart=Date.now();
+  inspectionHoldTimeout = setTimeout(()=>{
+    inspectionReady=true;
+    resetInspection();
+  },1000);
+}
+
+function inspectionTouchEnd(e){
   e.preventDefault();
-  clearTimeout(inspPressTimer);
-  if(inspectionReady){ resetInspection(); inspectionReady=false; }
-  inspectionHold=false; display.style.color='white';
-});
-
-document.getElementById('startBtn').addEventListener('mousedown',beginHold);
-document.getElementById('startBtn').addEventListener('mouseup',endHold);
-document.getElementById('startBtn').addEventListener('touchstart',beginHold);
-document.getElementById('startBtn').addEventListener('touchend',endHold);
-
-document.getElementById('newScramble').addEventListener('click',()=>newScramble(true));
-document.getElementById('exportCsv').addEventListener('click',()=>{
-  if(!times.length) return alert('沒有資料');
-  let csv='時間(ms),亂序,日期\n';
-  times.forEach(t=>{csv+=`${t.ms},"${t.scramble}",${t.at}\n`;});
-  const blob = new Blob([csv],{type:'text/csv'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download='rubik_times.csv'; a.click(); URL.revokeObjectURL(url);
-});
-document.getElementById('clear').addEventListener('click',()=>{
-  if(confirm('確認清除所有紀錄？')){
-    times=[]; saveTimes(); renderStats(); renderTime(null);
+  clearTimeout(inspectionHoldTimeout);
+  inspectionHoldTimeout=null;
+  if(!inspectionReady && inspectionOn){
+    display.style.color='red';
   }
+}
+
+toggleBtn.addEventListener('mousedown', inspectionTouchStart);
+toggleBtn.addEventListener('mouseup', inspectionTouchEnd);
+toggleBtn.addEventListener('touchstart', inspectionTouchStart);
+toggleBtn.addEventListener('touchend', inspectionTouchEnd);
+
+// --- 支援除了按鈕外的區域觸發 start ---
+document.body.addEventListener('mousedown', e=>{
+  if(inspectionOn && !e.target.closest('button')) beginHold();
+});
+document.body.addEventListener('mouseup', e=>{
+  if(inspectionOn && !e.target.closest('button')) endHold();
+});
+document.body.addEventListener('touchstart', e=>{
+  if(inspectionOn && !e.target.closest('button')) beginHold();
+});
+document.body.addEventListener('touchend', e=>{
+  if(inspectionOn && !e.target.closest('button')) endHold();
 });
 
-// 鍵盤
-document.addEventListener('keydown',e=>{
-  if(e.code==='Space'){ e.preventDefault(); beginHold(); }
-  if(e.key.toLowerCase()==='s'){ newScramble(true); }
-  if(e.key.toLowerCase()==='i'){ startInspection(); }
-});
-document.addEventListener('keyup',e=>{ if(e.code==='Space') endHold(); });
-
-// 初始化
 newScramble(); renderStats();
 </script>
 </body>
