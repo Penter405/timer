@@ -2,14 +2,27 @@
 const COLORS = ['white', 'orange', 'red', '#4ade80']; // 0:Idle, 1:Inspection, 2:Hold, 3:Ready
 
 // --- 工具 Tools ---
+const WCA_EVENT = { type: '333', mode: 'normal' }; // 3x3x3 Sighted
+
+function calcTime(ms, type = 'single') {
+    if (WCA_EVENT.type === '333') {
+        // WCA 9f1: Truncate single results to hundredths
+        if (type === 'single') return Math.floor(ms / 10) * 10;
+        // WCA 9f1: Round averages to hundredths
+        if (type === 'average') return Math.round(ms / 10) * 10;
+    }
+    return ms;
+}
+
 function fmt(ms) {
     if (ms == null) return '-';
-    // Fix: Handle 0 or invalid numbers gracefully if needed, though null check handles most.
     if (isNaN(ms)) return '-';
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
-    const cent = Math.floor((ms % 1000) / 10).toString().padStart(2, '0');
-    return minutes > 0 ? `${minutes}:${seconds}.${cent}` : `${seconds}.${cent}`;
+    // Input ms is expected to be already processed (truncated/rounded)
+    const totalCent = Math.round(ms / 10); // Safe to simple round/floor now
+    const m = Math.floor(totalCent / 6000);
+    const s = Math.floor((totalCent % 6000) / 100).toString().padStart(2, '0');
+    const c = (totalCent % 100).toString().padStart(2, '0');
+    return m > 0 ? `${m}:${s}.${c}` : `${s}.${c}`;
 }
 
 // --- 亂序產生器 Scramble Generator ---
@@ -99,11 +112,22 @@ function startTimer() {
 
 function stopTimer(save = true) {
     if (!running) return;
+    let finalMs = Date.now() - startAt;
+
+    // Apply WCA Rules (Truncate for singles)
+    finalMs = calcTime(finalMs, 'single');
+
     running = false;
     fullMode = false; // Stop full mode on timer stop
     clearInterval(intervalId);
-    if (save) addTime(Date.now() - startAt);
-    display.style.color = COLORS[0]; // White
+
+    renderTime(finalMs); // Sync display to exact final time
+
+    if (save) {
+        addTime(finalMs);
+    } else {
+        display.style.color = COLORS[0]; // White
+    }
 }
 
 function addTime(ms) {
@@ -137,14 +161,17 @@ function renderStats() {
     });
 
     lastEl.textContent = times.length ? fmt(times[0].ms) : '-';
-    ao5El.textContent = times.length >= 5 ? fmt(avg(times.slice(0, 5).map(x => x.ms))) : '-';
-    ao12El.textContent = times.length >= 12 ? fmt(avg(times.slice(0, 12).map(x => x.ms))) : '-';
+    // Use calcTime('average') for stats
+    ao5El.textContent = times.length >= 5 ? fmt(calcTime(avg(times.slice(0, 5).map(x => x.ms)), 'average')) : '-';
+    ao12El.textContent = times.length >= 12 ? fmt(calcTime(avg(times.slice(0, 12).map(x => x.ms)), 'average')) : '-';
     bestEl.textContent = times.length ? fmt(Math.min(...times.map(x => x.ms))) : '-';
     worstEl.textContent = times.length ? fmt(Math.max(...times.map(x => x.ms))) : '-';
 }
 
 function avg(arr) {
-    return Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+    // Simple mean (assuming input array is correct length)
+    // Note: WCA Ao5 usually requires removing best/worst, but here we just implement the Mean logic requested.
+    return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
 function newScramble() {
