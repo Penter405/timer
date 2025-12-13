@@ -68,10 +68,14 @@ function renderLeaderboard(data) {
     <table class="leaderboard-table" style="width:100%; border-collapse: collapse;">
         <thead>
             <tr style="text-align:left; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <th style="padding:8px;">#</th>
-                <th style="padding:8px;">暱稱</th>
-                <th style="padding:8px;">時間</th>
-                <th style="padding:8px;">日期</th>
+                <th rowspan="2" style="padding:8px; vertical-align:bottom;">#</th>
+                <th rowspan="2" style="padding:8px; vertical-align:bottom;">暱稱</th>
+                <th rowspan="2" style="padding:8px; vertical-align:bottom;">秒數</th>
+                <th colspan="2" style="padding:8px; text-align:center; border-bottom:1px solid rgba(255,255,255,0.1);">日期+時間</th>
+            </tr>
+            <tr style="text-align:left; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <th style="padding:8px; font-size:12px; color:var(--muted);">日期</th>
+                <th style="padding:8px; font-size:12px; color:var(--muted);">時間</th>
             </tr>
         </thead>
         <tbody>
@@ -84,12 +88,18 @@ function renderLeaderboard(data) {
         if (index === 1) rankStyle = 'color:#94a3b8; font-weight:bold;'; // Silver
         if (index === 2) rankStyle = 'color:#b45309; font-weight:bold;'; // Bronze
 
+        // Split Data/Time
+        const parts = (item.date || '').split('@');
+        const datePart = parts[0] || '-';
+        const timePart = parts[1] || '-';
+
         html += `
         <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
             <td style="padding:8px; ${rankStyle}">${index + 1}</td>
             <td style="padding:8px;">${escapeHtml(item.nickname)}</td>
             <td style="padding:8px; font-family:monospace; font-size:1.1em; color:var(--accent);">${item.time.toFixed(3)}</td>
-            <td style="padding:8px; font-size:0.9em; color:var(--muted);">${formatDate(item.date)}</td>
+            <td style="padding:8px; font-size:0.9em; color:var(--muted);">${datePart}</td>
+            <td style="padding:8px; font-size:0.9em; color:var(--muted);">${timePart}</td>
         </tr>
         `;
     });
