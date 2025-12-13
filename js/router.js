@@ -1,6 +1,6 @@
 // --- Page Router ---
 let currentPage = 'home';
-let loggedIn = false;
+window.loggedIn = false;
 
 function initRouter() {
     // Set up navigation event listeners
@@ -51,7 +51,7 @@ function capitalize(str) {
 }
 
 function handleLoginClick() {
-    if (!loggedIn) {
+    if (!window.loggedIn) {
         // Trigger Google Sign-In
         // The actual login is handled by Google's library
         console.log('Please sign in with Google button in header');
@@ -59,9 +59,9 @@ function handleLoginClick() {
 }
 
 function handleLogout() {
-    loggedIn = false;
+    window.loggedIn = false;
     googleIdToken = null;
-    updateNavBar();
+    window.updateNavBar();
 
     // Clear User Data from Local Storage and UI
     localStorage.removeItem('rubik_nickname');
@@ -84,10 +84,10 @@ function handleLogout() {
     alert('已登出');
 }
 
-function updateNavBar() {
+window.updateNavBar = function () {
     const logoutBtn = document.getElementById('navLogout');
 
-    if (loggedIn) {
+    if (window.loggedIn) {
         logoutBtn?.classList.remove('hidden');
     } else {
         logoutBtn?.classList.add('hidden');

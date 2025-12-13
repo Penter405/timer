@@ -8,9 +8,9 @@ window.handleCredentialResponse = function (response) {
         googleIdToken = response.credential;
 
         // Update login state (defined in router.js)
-        if (typeof loggedIn !== 'undefined') {
-            loggedIn = true;
-            updateNavBar();
+        if (typeof window.loggedIn !== 'undefined') {
+            window.loggedIn = true;
+            window.updateNavBar();
         }
 
         // Greeting Logic
@@ -190,14 +190,14 @@ function saveTimes(arr) {
         const API_URL = 'https://timer-neon-two.vercel.app/api/save_time';
 
         // Get Nickname from Settings (or load from localStorage if not on page)
-        let nickname = '';
+        // Get Nickname strictly from localStorage (Sync/Upload sets this)
+        // Fallback: Check input box only if LS is empty AND input has value
+        let nickname = localStorage.getItem('rubik_nickname') || '';
         const nicknameEl = document.getElementById('settingsNickname');
-        if (nicknameEl) {
-            nickname = nicknameEl.value;
-            // Auto-save nickname to local storage preference
+
+        if (!nickname && nicknameEl && nicknameEl.value.trim()) {
+            nickname = nicknameEl.value.trim();
             localStorage.setItem('rubik_nickname', nickname);
-        } else {
-            nickname = localStorage.getItem('rubik_nickname') || '';
         }
 
         fetch(API_URL, {
