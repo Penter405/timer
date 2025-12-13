@@ -17,7 +17,11 @@ body {
     margin: 0;
     background: linear-gradient(180deg, #071021 0%, #081426 100%);
     color: #e6eef6;
+}
+
+.no-select {
     user-select: none;
+    -webkit-user-select: none;
 }
 
 .wrap {

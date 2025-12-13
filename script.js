@@ -109,6 +109,7 @@ function stopTimer(save = true) {
 
     running = false;
     fullMode = false; // Stop full mode on timer stop
+    document.body.classList.remove('no-select'); // Enable selection
     clearInterval(intervalId);
 
     renderTime(finalMs); // Sync display to exact final time
@@ -294,6 +295,7 @@ function startInspection() {
     resetInspection();
     inspectionOn = true;
     fullMode = true; // Enable Full Mode
+    document.body.classList.add('no-select'); // Disable selection
 
     // Set color to Orange
     display.style.color = COLORS[1];
@@ -320,6 +322,7 @@ function stopPlaying() {
     holding = false;
     ready = false;
     fullMode = false;
+    document.body.classList.remove('no-select'); // Enable selection
 }
 
 // Inspection Toggle Button Long Press
