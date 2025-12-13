@@ -6,8 +6,9 @@ const WCA_EVENT = { type: '333', mode: 'normal' }; // 3x3x3 Sighted
 
 function calcTime(ms, type = 'single') {
     if (WCA_EVENT.type === '333') {
-        // WCA 9f1: Truncate single results to hundredths
-        if (type === 'single') return Math.floor(ms / 10) * 10;
+        // WCA 9f1: Truncate single results to hundredths - DISABLED per user request
+        // if (type === 'single') return Math.floor(ms / 10) * 10;
+
         // WCA 9f1: Round averages to hundredths
         if (type === 'average') return Math.round(ms / 10) * 10;
     }
@@ -18,11 +19,15 @@ function fmt(ms) {
     if (ms == null) return '-';
     if (isNaN(ms)) return '-';
     // Input ms is expected to be already processed (truncated/rounded)
-    const totalCent = Math.round(ms / 10); // Safe to simple round/floor now
-    const m = Math.floor(totalCent / 6000);
-    const s = Math.floor((totalCent % 6000) / 100).toString().padStart(2, '0');
-    const c = (totalCent % 100).toString().padStart(2, '0');
-    return m > 0 ? `${m}:${s}.${c}` : `${s}.${c}`;
+    // Input ms is expected to be full precision now
+    // const totalCent = Math.round(ms / 10); 
+
+    // Display 3 decimal places
+    const m = Math.floor(ms / 60000);
+    const s = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
+    const msStr = (ms % 1000).toString().padStart(3, '0');
+
+    return m > 0 ? `${m}:${s}.${msStr}` : `${s}.${msStr}`;
 }
 
 // --- 亂序產生器 Scramble Generator ---
@@ -80,8 +85,8 @@ function renderTime(ms) {
     }
     const minutes = Math.floor(ms / 60000);
     const seconds = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
-    const cent = Math.floor((ms % 1000) / 10).toString().padStart(2, '0');
-    display.textContent = minutes > 0 ? `${minutes}:${seconds}.${cent}` : `${seconds}.${cent}`;
+    const msStr = (ms % 1000).toString().padStart(3, '0'); // 3 digits
+    display.textContent = minutes > 0 ? `${minutes}:${seconds}.${msStr}` : `${seconds}.${msStr}`;
 }
 
 function startTimer() {
