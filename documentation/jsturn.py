@@ -100,7 +100,7 @@ def user_setting():
     if touched(user_setting):
         print("go to user_setting page, like YouTube, if you touch video, it will show different ui")
         print("bar still show home, login, more, but it will show different ui")
-        print("setting include 檢查時間 主題 nickname")#nickname 會上傳到google sheet,其他的留在本地 
+        print("setting include 檢查時間 主題 nickname")#nickname 會上傳到google sheet,其他的留在本地 #主題我發現你有寫下拉選單 請讓選單的顏色和背景色一致(當然選單的文字也是)
 def more():
     if touched(more):
         print(f"show row table of {more_bar}")

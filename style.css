@@ -27,9 +27,20 @@ body {
 }
 
 header {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 18px;
+    padding: 0;
+    /* padding handled inside or by grid gap */
+}
+
+.header-left {
     display: flex;
     align-items: center;
-    gap: 16px;
+    justify-content: space-between;
+    /* This spreads the items out! */
+    padding: 0 16px;
+    /* Match padding of .card below */
 }
 
 h1 {
@@ -208,14 +219,24 @@ footer {
     font-size: 14px;
 }
 
+
 .settings-group input,
 .settings-group select {
-    background: var(--glass);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    color: inherit;
+    background: var(--card);
+    /* Match card background */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #e6eef6;
+    /* Match text color */
     padding: 6px 12px;
     border-radius: 6px;
     font-size: 14px;
+    outline: none;
+}
+
+.settings-group select option {
+    background: var(--bg);
+    /* Dark background for dropdown items */
+    color: #e6eef6;
 }
 
 /* More Menu */

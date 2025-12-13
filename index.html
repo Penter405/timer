@@ -11,20 +11,19 @@
 <body>
     <div class="wrap">
         <header>
-            <h1 id="navHome" style="cursor:pointer;">魔方計時器</h1>
-            <nav class="navbar">
-                <button id="navHome" class="nav-btn active">首頁</button>
-                <div id="g_id_onload"
-                    data-client_id="989488402816-0cvnhchjvak4f16vf1d54pnbhm0dvh3k.apps.googleusercontent.com"
-                    data-callback="handleCredentialResponse" data-auto_select="true" data-itp_support="true">
-                </div>
-                <div class="g_id_signin" data-type="standard" data-shape="pill" data-theme="outline"
-                    data-text="signin_with" data-size="small" data-logo_alignment="left"></div>
-                <button id="navLogout" class="nav-btn hidden">登出</button>
-                <button id="navMore" class="nav-btn">更多</button>
-            </nav>
-            <div style="margin-left:auto;color:var(--muted);font-size:13px">
-                鍵盤：空白鍵開始/停止｜S 重新產生亂序｜I 開始檢查
+            <div class="header-left">
+                <h1 id="navTitle" style="cursor:pointer;">Timer</h1>
+                <nav class="navbar">
+                    <div id="g_id_onload"
+                        data-client_id="989488402816-0cvnhchjvak4f16vf1d54pnbhm0dvh3k.apps.googleusercontent.com"
+                        data-callback="handleCredentialResponse" data-auto_select="true" data-itp_support="true">
+                    </div>
+                    <div class="g_id_signin" data-type="standard" data-shape="pill" data-theme="outline"
+                        data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
+                    <button id="navLogout" class="nav-btn hidden">登出</button>
+                    <div style="width: 10px;" class="spacer"></div>
+                    <button id="navMore" class="nav-btn">更多</button>
+                </nav>
             </div>
         </header>
 
@@ -132,6 +131,7 @@
 
         <footer>儲存：使用 localStorage（僅本機）。亂序產生器為 3x3 常用步驟。歡迎回報想要的功能。</footer>
     </div>
+    <script src="js/scoreboard.js"></script>
     <script src="js/router.js"></script>
     <script src="js/connect.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
