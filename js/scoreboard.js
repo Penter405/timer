@@ -89,7 +89,7 @@ async function fetchLeaderboard() {
             let displayName = userMap[email];
 
             if (!displayName) {
-                displayName = email.split('@')[0] || 'Anonymous';
+                displayName = 'Unnamed';
             }
 
             return {
