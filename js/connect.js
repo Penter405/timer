@@ -48,8 +48,7 @@ function parseJwt(token) {
     } catch (e) { return {}; }
 }
 
-const SHEET_ID = '1RlcaqvG1fiSXPhQBoidYVk3dwsi1bojO6Y9FnF1ZYoY';
-const USER_MAP_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=UserMap`;
+// Constants SHEET_ID and USER_MAP_URL are defined in scoreboard.js (loaded first)
 
 async function syncNickname(email) {
     try {
