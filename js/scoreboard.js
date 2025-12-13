@@ -15,9 +15,9 @@ async function fetchLeaderboard() {
         const rows = parseCSV(text);
 
         // Filter and map data
-        // Expected columns: Nickname(0), Time(1), Scramble(2), Email(3), Date(4), Status(5)
+        // Expected: Nickname(0), Time(1), Scramble(2), Email(3), Date(4), Time(5), Status(6)
         const times = rows.map(row => {
-            if (row.length < 5) return null;
+            if (row.length < 6) return null;
             const time = parseFloat(row[1]);
             if (isNaN(time)) return null;
             return {
@@ -25,7 +25,8 @@ async function fetchLeaderboard() {
                 time: time,
                 scramble: row[2],
                 date: row[4],
-                status: row[5]
+                timeStr: row[5],
+                status: row[6]
             };
         }).filter(item => item !== null);
 
@@ -41,17 +42,12 @@ async function fetchLeaderboard() {
 }
 
 function parseCSV(text) {
-    // Simple CSV parser (handles basic quotes if needed, but simple split might suffice for now)
-    // For robustness, assuming standard CSV
+    // Simple CSV parser
     const lines = text.split('\n');
     return lines.map(line => {
-        // Handle basic CSV parsing (ignoring complex quote cases for now)
-        // Better to use a regex or library if data contains commas
-        // For simple Rubik's data, split(',') might work unless scramble has commas
-        // Scramble usually spaces. Date has colons. 
-        // Let's use a slightly better regex for CSV split
+        // Regex for CSV split handling quotes
         const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-        // Fallback to simple split if regex fails or for simplicity
+        if (matches) return matches.map(m => m.replace(/^"|"$/g, '').trim());
         return line.split(',').map(cell => cell.replace(/^"|"$/g, '').trim());
     });
 }
@@ -85,18 +81,13 @@ function renderLeaderboard(data) {
         if (index === 1) rankStyle = 'color:#94a3b8; font-weight:bold;'; // Silver
         if (index === 2) rankStyle = 'color:#b45309; font-weight:bold;'; // Bronze
 
-        // Split Data/Time
-        const parts = (item.date || '').split('@');
-        const datePart = parts[0] || '-';
-        const timePart = parts[1] || '-';
-
         html += `
         <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
             <td style="padding:8px; ${rankStyle}">${index + 1}</td>
             <td style="padding:8px;">${escapeHtml(item.nickname)}</td>
             <td style="padding:8px; font-family:monospace; font-size:1.1em; color:var(--accent);">${item.time.toFixed(3)}</td>
-            <td style="padding:8px; font-size:0.9em; color:var(--muted);">${datePart}</td>
-            <td style="padding:8px; font-size:0.9em; color:var(--muted);">${timePart}</td>
+            <td style="padding:8px; font-size:0.9em; color:var(--muted);">${item.date || '-'}</td>
+            <td style="padding:8px; font-size:0.9em; color:var(--muted);">${item.timeStr || '-'}</td>
         </tr>
         `;
     });
@@ -114,10 +105,3 @@ function escapeHtml(text) {
         .replace(/'/g, "&#039;");
 }
 
-function formatDate(dateStr) {
-    // Try to format YYYY/MM/DD@HH:MM:SS to something shorter?
-    // Or just return as is
-    if (!dateStr) return '-';
-    return dateStr.split('@')[0]; // Show date only to save space? Or full?
-    // Let's show full for now or based on width
-}

@@ -58,7 +58,9 @@ module.exports = async (req, res) => {
         const hh = String(twDate.getHours()).padStart(2, '0');
         const min = String(twDate.getMinutes()).padStart(2, '0');
         const ss = String(twDate.getSeconds()).padStart(2, '0');
-        const formattedDate = `${yyyy}/${mm}/${dd}@${hh}:${min}:${ss}`;
+
+        const formattedDateOnly = `${yyyy}/${mm}/${dd}`;
+        const formattedTimeOnly = `${hh}:${min}:${ss}`;
 
         // 4. Authenticate with Google Sheets (Authorization)
         let credentials;
@@ -77,10 +79,10 @@ module.exports = async (req, res) => {
         const sheets = google.sheets({ version: 'v4', auth });
 
         // 5. Append to Sheet
-        // Order: Nickname | Time(s) | Scramble | Email | Date(fmt) | Status
+        // Order: Nickname | Time(s) | Scramble | Email | Date | Time | Status
         const response = await sheets.spreadsheets.values.append({
             spreadsheetId: process.env.GOOGLE_SHEET_ID,
-            range: 'Sheet1!A:F', // Expanded range
+            range: 'Sheet1!A:G', // Expanded range to G
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values: [
@@ -89,7 +91,8 @@ module.exports = async (req, res) => {
                         formattedTime,           // Time (seconds)
                         scramble,                // Scramble
                         userEmail,               // Email
-                        formattedDate,           // Date (YYYY/MM/DD/HH:MM:SS)
+                        formattedDateOnly,       // Date (YYYY/MM/DD)
+                        formattedTimeOnly,       // Time (HH:MM:SS)
                         'Verified'               // Status
                     ]
                 ],
