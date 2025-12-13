@@ -1,5 +1,6 @@
 const SHEET_ID = '1RlcaqvG1fiSXPhQBoidYVk3dwsi1bojO6Y9FnF1ZYoY';
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
+// Use Google Visualization API Query Language to get JSON
+const JSON_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
 
 async function fetchLeaderboard() {
     const container = document.getElementById('leaderboard');
@@ -8,25 +9,41 @@ async function fetchLeaderboard() {
     container.innerHTML = '<p>正在讀取排行榜...</p>';
 
     try {
-        const response = await fetch(CSV_URL);
+        const response = await fetch(JSON_URL);
         if (!response.ok) throw new Error('Network error');
 
         const text = await response.text();
-        const rows = parseCSV(text);
+        // The response comes wrapped in: /*O_o*/ google.visualization.Query.setResponse({...});
+        // We need to extract the JSON object.
+        const jsonString = text.substring(47).slice(0, -2);
+        const json = JSON.parse(jsonString);
 
-        // Filter and map data
-        // Expected: Nickname(0), Time(1), Scramble(2), Email(3), Date(4), Time(5), Status(6)
+        const rows = json.table.rows;
+
+        // Map JSON data to our structure
+        // Columns: 0:Nickname, 1:Time, 2:Scramble, 3:Email, 4:Date, 5:TimeStr, 6:Status
         const times = rows.map(row => {
-            if (row.length < 6) return null;
-            const time = parseFloat(row[1]);
+            const cells = row.c;
+            if (!cells) return null;
+
+            // Helper to safe get value
+            const getVal = (idx) => cells[idx] ? (cells[idx].v === null ? '' : cells[idx].v) : '';
+
+            // Time column (1) is passed as string or number in JSON depending on input
+            let timeVal = getVal(1);
+            // If it's a string, try parse; if it's number, use it.
+            // Google Sheets JSON might treat numbers as numbers.
+            const time = parseFloat(timeVal);
+
             if (isNaN(time)) return null;
+
             return {
-                nickname: row[0] || 'Anonymous',
+                nickname: getVal(0) || 'Anonymous',
                 time: time,
-                scramble: row[2],
-                date: row[4],
-                timeStr: row[5],
-                status: row[6]
+                scramble: getVal(2),
+                date: getVal(4),
+                timeStr: getVal(5),
+                status: getVal(6)
             };
         }).filter(item => item !== null);
 
@@ -41,16 +58,8 @@ async function fetchLeaderboard() {
     }
 }
 
-function parseCSV(text) {
-    // Simple CSV parser
-    const lines = text.split('\n');
-    return lines.map(line => {
-        // Regex for CSV split handling quotes
-        const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-        if (matches) return matches.map(m => m.replace(/^"|"$/g, '').trim());
-        return line.split(',').map(cell => cell.replace(/^"|"$/g, '').trim());
-    });
-}
+// parseCSV function removed as we are using JSON now
+
 
 function renderLeaderboard(data) {
     const container = document.getElementById('leaderboard');
