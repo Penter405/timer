@@ -83,8 +83,8 @@ async function fetchLeaderboard() {
 
             if (isNaN(time)) return null;
 
-            // Lookup Nickname using Email (Col 0 or 3)
-            const email = getVal(0) || getVal(3);
+            // Lookup Nickname using Email (Col 0)
+            const email = getVal(0);
             // If email is in map, use it. Else show First part of email or 'Anonymous'
             let displayName = userMap[email];
 
@@ -96,9 +96,9 @@ async function fetchLeaderboard() {
                 nickname: displayName,
                 time: time,
                 scramble: getVal(2),
-                date: getVal(4),
-                timeStr: getVal(5),
-                status: getVal(6)
+                date: getVal(3),
+                timeStr: getVal(4),
+                status: getVal(5)
             };
         }).filter(item => item !== null);
 
