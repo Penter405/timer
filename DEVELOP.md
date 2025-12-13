@@ -39,7 +39,8 @@
 
 ### 4. 關鍵檔案說明
 *   `script.js`: 核心計時邏輯、WCA 狀態機 (Idle/Inspect/Ready/Running)。
-*   `js/connect.js`: Google Auth 整合、API 呼叫封裝。
+*   `js/router.js`: 處理 SPA頁面切換、導覽列狀態、以及全域 `window.loggedIn` 狀態管理。
+*   `js/connect.js`: Google Auth 整合、API 呼叫封裝 (與 Router 共享 Global State)。
 *   `js/scoreboard.js`: 排行榜讀取與渲染邏輯。
 *   `docs/api/save_time.js`: 成績上傳 API (處理強制純文字邏輯)。
 *   `docs/api/update_nickname.js`: 暱稱系統 API (Hash Table 核心)。
