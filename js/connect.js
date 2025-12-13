@@ -13,6 +13,16 @@ window.handleCredentialResponse = function (response) {
             updateNavBar();
         }
 
+        // Greeting Logic
+        const greetingEl = document.getElementById('nicknameGreeting');
+        if (greetingEl) {
+            greetingEl.textContent = '你好';
+            const savedName = localStorage.getItem('rubik_nickname');
+            if (savedName) {
+                greetingEl.textContent = `你好 ${savedName}`;
+            }
+        }
+
         console.log("Signed in with Google");
         // Optional: Show user info or change UI
 
@@ -28,9 +38,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const nicknameEl = document.getElementById('settingsNickname');
     const greetingEl = document.getElementById('nicknameGreeting');
 
-    if (savedName && greetingEl) {
-        greetingEl.textContent = `你好 ${savedName}`;
-    }
+    // Greeting logic moved to handleCredentialResponse to ensure strict login state.
+    // DOMContentLoaded cleanup.
+
+    // Do not auto-fill input. Keeping it empty for updates.
+    // if (savedName && nicknameEl) {
+    //    nicknameEl.value = savedName;
+    // }
 
     const updateBtn = document.getElementById('updateNicknameBtn');
     if (updateBtn) {
