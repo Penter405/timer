@@ -21,11 +21,60 @@ window.handleCredentialResponse = function (response) {
 };
 
 // Auto-load nickname on startup
+// Auto-load nickname on startup
 document.addEventListener('DOMContentLoaded', () => {
     const savedName = localStorage.getItem('rubik_nickname');
     const nicknameEl = document.getElementById('settingsNickname');
     if (savedName && nicknameEl) {
         nicknameEl.value = savedName;
+    }
+
+    const updateBtn = document.getElementById('updateNicknameBtn');
+    if (updateBtn) {
+        updateBtn.addEventListener('click', () => {
+            if (!googleIdToken) {
+                alert('請先登入 Google 帳號！');
+                return;
+            }
+            const inputName = nicknameEl.value.trim();
+            if (!inputName) {
+                alert('請輸入暱稱！');
+                return;
+            }
+
+            // Call API
+            const API_URL = 'https://timer-neon-two.vercel.app/api/update_nickname';
+            // Disable button
+            updateBtn.disabled = true;
+            updateBtn.textContent = '上傳中...';
+
+            fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: googleIdToken,
+                    nickname: inputName
+                })
+            })
+                .then(res => {
+                    if (!res.ok) throw new Error('API Error');
+                    return res.json();
+                })
+                .then(data => {
+                    const uniqueName = data.uniqueName;
+                    alert(`您的暱稱已更新為：${uniqueName}`);
+                    nicknameEl.value = uniqueName;
+                    localStorage.setItem('rubik_nickname', uniqueName);
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('更新失敗，請稍後再試。');
+                })
+                .finally(() => {
+                    updateBtn.disabled = false;
+                    updateBtn.textContent = '上傳';
+                });
+        });
     }
 });
 
