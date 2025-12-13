@@ -23,12 +23,76 @@ window.handleCredentialResponse = function (response) {
             }
         }
 
+        // --- NEW: Sync Nickname from Cloud ---
+        const payload = parseJwt(response.credential);
+        if (payload && payload.email) {
+            syncNickname(payload.email);
+        }
+
         console.log("Signed in with Google");
         // Optional: Show user info or change UI
 
         // Sync check: Maybe upload unsynced times? (Advanced)
     }
 };
+
+// --- Utils & Sync Logic ---
+function parseJwt(token) {
+    try {
+        var base64Url = token.split('.')[1];
+        var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload);
+    } catch (e) { return {}; }
+}
+
+const SHEET_ID = '1RlcaqvG1fiSXPhQBoidYVk3dwsi1bojO6Y9FnF1ZYoY';
+const USER_MAP_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=UserMap`;
+
+async function syncNickname(email) {
+    try {
+        const response = await fetch(USER_MAP_URL);
+        if (!response.ok) return;
+
+        const text = await response.text();
+        const jsonString = text.substring(47).slice(0, -2);
+        const json = JSON.parse(jsonString);
+
+        let foundName = null;
+        const rows = json.table.rows;
+
+        if (rows) {
+            for (const row of rows) {
+                const cells = row.c;
+                if (!cells) continue;
+                // Check all Pair Columns (Bucket Check)
+                for (let i = 0; i < cells.length - 1; i += 2) {
+                    const keyCell = cells[i];    // Email
+                    const valCell = cells[i + 1];  // Nickname
+
+                    if (keyCell && keyCell.v === email && valCell && valCell.v) {
+                        foundName = valCell.v;
+                        break;
+                    }
+                }
+                if (foundName) break;
+            }
+        }
+
+        if (foundName) {
+            console.log("Synced nickname from cloud:", foundName);
+            localStorage.setItem('rubik_nickname', foundName);
+            const greetingEl = document.getElementById('nicknameGreeting');
+            if (greetingEl) {
+                greetingEl.textContent = `你好 ${foundName}`;
+            }
+        }
+    } catch (e) {
+        console.error("Sync Nickname Error", e);
+    }
+}
 
 // Auto-load nickname on startup
 // Auto-load nickname on startup

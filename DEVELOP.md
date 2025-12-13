@@ -49,9 +49,10 @@
 *   **未登入 (Guest)**: 
     *   問候語 (Greeting): 空白。
     *   設定頁 Input: 空白。
-*   **已登入 (No Nickname)**: 
+*   **已登入 (No Nickname on Device)**: 
     *   問候語: "你好"。
-    *   設定頁 Input: 空白 (等待輸入)。
+    *   設定頁 Input: 空白。
+    *   **背景同步 (Cloud Sync)**: 系統會自動從 Google Sheet `UserMap` 撈取是否已存在對應的暱稱。若找到，自動更新為 "已登入 (With Nickname)" 狀態並寫入 LocalStorage。
 *   **已登入 (With Nickname)**: 
     *   問候語: "你好 {Nickname}#{ID}"。
     *   設定頁 Input: 空白 (不自動填入舊名)。
