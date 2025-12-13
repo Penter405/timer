@@ -17,10 +17,9 @@ window.handleCredentialResponse = function (response) {
         const greetingEl = document.getElementById('nicknameGreeting');
         if (greetingEl) {
             greetingEl.textContent = '你好';
-            const savedName = localStorage.getItem('rubik_nickname');
-            if (savedName) {
-                greetingEl.textContent = `你好 ${savedName}`;
-            }
+            // Clear any stale local storage from previous user
+            // We rely on syncNickname to restore it if it exists for THIS user.
+            localStorage.removeItem('rubik_nickname');
         }
 
         // --- NEW: Sync Nickname from Cloud ---
