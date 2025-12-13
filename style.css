@@ -277,6 +277,10 @@ footer {
         grid-template-columns: 1fr;
     }
 
+    header {
+        grid-template-columns: 1fr;
+    }
+
     .time {
         font-size: 56px;
     }
@@ -284,8 +288,21 @@ footer {
     .wrap {
         padding: 12px;
     }
+}
 
-    .navbar {
-        flex-wrap: wrap;
+@media(max-width: 600px) {
+    .header-left {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    header .navbar {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .header-left h1 {
+        padding-left: 8px;
     }
 }
