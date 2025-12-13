@@ -93,9 +93,13 @@
             <div class="page-content">
                 <h2>⚙️ 用戶設定</h2>
                 <div class="card">
-                    <div class="settings-group">
+                    <div class="settings-item">
                         <label>暱稱</label>
-                        <input type="text" id="settingsNickname" placeholder="你的名稱 (選填)">
+                        <div class="input-row" style="display:flex; gap:8px;">
+                            <input type="text" id="settingsNickname" placeholder="輸入暱稱" style="flex:1; min-width:0;">
+                            <button id="updateNicknameBtn" class="btn-primary"
+                                style="padding:6px 12px; white-space:nowrap;">上傳</button>
+                        </div>
                     </div>
                     <div class="settings-group">
                         <label>檢查時間 (秒)</label>
