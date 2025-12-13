@@ -68,14 +68,11 @@ function renderLeaderboard(data) {
     <table class="leaderboard-table" style="width:100%; border-collapse: collapse;">
         <thead>
             <tr style="text-align:left; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <th rowspan="2" style="padding:8px; vertical-align:bottom;">#</th>
-                <th rowspan="2" style="padding:8px; vertical-align:bottom;">暱稱</th>
-                <th rowspan="2" style="padding:8px; vertical-align:bottom;">秒數</th>
-                <th colspan="2" style="padding:8px; text-align:center; border-bottom:1px solid rgba(255,255,255,0.1);">日期+時間</th>
-            </tr>
-            <tr style="text-align:left; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <th style="padding:8px; font-size:12px; color:var(--muted);">日期</th>
-                <th style="padding:8px; font-size:12px; color:var(--muted);">時間</th>
+                <th style="padding:8px;">#</th>
+                <th style="padding:8px;">暱稱</th>
+                <th style="padding:8px;">秒數</th>
+                <th style="padding:8px;">日期</th>
+                <th style="padding:8px;">時間</th>
             </tr>
         </thead>
         <tbody>
