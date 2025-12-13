@@ -2,6 +2,37 @@ const { google } = require('googleapis');
 const { OAuth2Client } = require('google-auth-library');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const BUCKET_SIZE = 100; // Modulo. Uses 200 columns.
+
+// Simple string hash function
+function getBucketIndex(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash) % BUCKET_SIZE;
+}
+
+// Convert 0-based column index to A1 notation letter (e.g. 0->A, 26->AA)
+function getColumnLetter(colIndex) {
+    let temp, letter = '';
+    while (colIndex >= 0) {
+        temp = colIndex % 26;
+        letter = String.fromCharCode(temp + 65) + letter;
+        colIndex = Math.floor(colIndex / 26) - 1;
+    }
+    return letter;
+}
+
+// Helper to get range string for a bucket (e.g. "Sheet!A:B")
+function getBucketRange(sheetName, bucketIndex) {
+    const startCol = bucketIndex * 2;
+    const endCol = startCol + 1;
+    const startLetter = getColumnLetter(startCol);
+    const endLetter = getColumnLetter(endCol);
+    return `${sheetName}!${startLetter}:${endLetter}`;
+}
 
 module.exports = async (req, res) => {
     // CORS
@@ -46,139 +77,116 @@ module.exports = async (req, res) => {
         const sheets = google.sheets({ version: 'v4', auth });
         const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
-        // 3. READ: Batch Get Counts and UserMap
-        // UserMap: A(Email), B(UniqueName)
-        // Counts: A(BaseName), B(CurrentCount)
-        const ranges = ['UserMap!A:B', 'Counts!A:B'];
+        // 3. Logic: UserMap Hash Lookup (Email -> UniqueName)
+        const userBucket = getBucketIndex(userEmail);
+        const userRange = getBucketRange('UserMap', userBucket); // e.g. UserMap!C:D
+
+        // 4. Logic: Counts Hash Lookup (Nickname -> Count)
+        const countBucket = getBucketIndex(nickname);
+        const countRange = getBucketRange('Counts', countBucket); // e.g. Counts!E:F
+
+        // Batch Get Both Buckets
         const getRes = await sheets.spreadsheets.values.batchGet({
             spreadsheetId,
-            ranges,
+            ranges: [userRange, countRange]
         });
 
-        const userMapData = getRes.data.valueRanges[0].values || [];
-        const countsData = getRes.data.valueRanges[1].values || [];
+        const userRows = getRes.data.valueRanges[0].values || [];
+        const countRows = getRes.data.valueRanges[1].values || [];
 
-        // 4. Logic
+        // --- Process UserMap ---
+        let existingUniqueName = null;
+        let userRowIdx = -1; // Relative to the bucket list
 
-        // A. Check current UserMap for this email
-        let userRowIndex = -1; // 0-based index in the 'values' array
-        // Finding index relative to the sheet, assuming data starts at Row 1
-        // If header exists, we should skip it, but simple logic: scan all.
-        for (let i = 0; i < userMapData.length; i++) {
-            if (userMapData[i][0] === userEmail) {
-                userRowIndex = i;
+        for (let i = 0; i < userRows.length; i++) {
+            if (userRows[i][0] === userEmail) {
+                existingUniqueName = userRows[i][1];
+                userRowIdx = i;
                 break;
             }
         }
 
-        // B. Calculate New Name
-        // Find base nickname in Counts
-        let countRowIndex = -1;
+        // --- Process Counts ---
         let currentCount = 0;
+        let countRowIdx = -1;
 
-        for (let i = 0; i < countsData.length; i++) {
-            if (countsData[i][0] === nickname) {
-                countRowIndex = i;
-                currentCount = parseInt(countsData[i][1] || '0');
+        for (let i = 0; i < countRows.length; i++) {
+            if (countRows[i][0] === nickname) {
+                currentCount = parseInt(countRows[i][1] || '0');
+                countRowIdx = i;
                 break;
             }
         }
 
+        // --- Decision ---
+        // Always generate new unique name based on requested nickname
+        // 1. Increment Count
         const newCount = currentCount + 1;
-        const uniqueName = `${nickname}#${newCount}`;
 
-        // 5. Prepare Updates (BatchUpdate)
-        const requests = [];
+        // 2. Form Unique Name
+        const newUniqueName = `${nickname}#${newCount}`;
 
-        // Update Counts
-        if (countRowIndex !== -1) {
-            // Update existing row
-            requests.push({
-                updateCells: {
-                    range: {
-                        sheetId: 0, // WARNING: Need SheetId, not Name. This is tricky. 
-                        // ValueInput uses A1 notation, but batchUpdate uses sheetId.
-                        // Easier to use values.update or values.append if we want to avoid getting sheet metadata.
-                    }
-                }
-            });
-            // Trying value-based batchUpdate is simpler (values.batchUpdate)
-        }
+        // 3. Prepare Writes
+        const updates = [];
 
-        /* 
-           Simpler Strategy using values.batchUpdate with A1 notation:
-           We assume we can write to specific cells found by index.
-           Row 1 is index 0. So Sheet Row = index + 1.
-        */
+        // Write to Counts
+        // If key exists (collision match), update Value
+        // If key not exists, append to end of bucket
+        const countStartColLetter = getColumnLetter(countBucket * 2);
+        const countValColLetter = getColumnLetter(countBucket * 2 + 1);
 
-        const valueUpdates = [];
-
-        // Update Count
-        if (countRowIndex !== -1) {
-            // Update existing cell B{row}
-            valueUpdates.push({
-                range: `Counts!B${countRowIndex + 1}`,
+        if (countRowIdx !== -1) {
+            // Update existing count: Counts!{ValCol}{Row}
+            // Row is 1-based. 
+            // Warning: batchGet ranges are usually relative to A1, 
+            // but the data array index matches row number if we fetched full column.
+            const rowNum = countRowIdx + 1;
+            updates.push({
+                range: `Counts!${countValColLetter}${rowNum}`,
                 values: [[newCount]]
             });
         } else {
-            // Append new count row. 
-            // Since we can't mix update and append easily in one atomic batch without knowing next row,
-            // we'll just Append a new row to Counts via a separate API call if needed, 
-            // OR we assume Counts is small enough we can overwrite the whole thing? No.
-            // Just use a separate append call for new base names.
+            // Append new Key-Value pair to the first empty row in this bucket
+            // Or just use the next row index
+            const nextRow = countRows.length + 1;
+            updates.push({
+                range: `Counts!${countStartColLetter}${nextRow}:${countValColLetter}${nextRow}`,
+                values: [[nickname, newCount]]
+            });
         }
 
-        // Update UserMap
-        if (userRowIndex !== -1) {
-            // Update existing cell B{row}
-            valueUpdates.push({
-                range: `UserMap!B${userRowIndex + 1}`,
-                values: [[uniqueName]]
+        // Write to UserMap
+        // Always update mapping to new name
+        const userStartColLetter = getColumnLetter(userBucket * 2);
+        const userValColLetter = getColumnLetter(userBucket * 2 + 1);
+
+        if (userRowIdx !== -1) {
+            const rowNum = userRowIdx + 1;
+            updates.push({
+                range: `UserMap!${userValColLetter}${rowNum}`,
+                values: [[newUniqueName]]
             });
         } else {
-            // Append new user row
-        }
-
-        // EXECUTE UPDATES
-        // Because sticking strictly to 1 request is hard when mixing updates and appends,
-        // we will prioritizing correctness over strict request count minimization (2 or 3 is fine).
-
-        // Step A: Update the Value Updates (Points 1 & 3 above)
-        if (valueUpdates.length > 0) {
-            await sheets.spreadsheets.values.batchUpdate({
-                spreadsheetId,
-                requestBody: {
-                    valueInputOption: 'USER_ENTERED',
-                    data: valueUpdates
-                }
+            const nextRow = userRows.length + 1;
+            updates.push({
+                range: `UserMap!${userStartColLetter}${nextRow}:${userValColLetter}${nextRow}`,
+                values: [[userEmail, newUniqueName]]
             });
         }
 
-        // Step B: Handle Appends (Points 2 & 4 above)
-        // If we didn't find the base name, we append it to Counts
-        if (countRowIndex === -1) {
-            await sheets.spreadsheets.values.append({
-                spreadsheetId,
-                range: 'Counts!A:B',
+        // EXECUTE BATCH UPDATE
+        await sheets.spreadsheets.values.batchUpdate({
+            spreadsheetId,
+            requestBody: {
                 valueInputOption: 'USER_ENTERED',
-                requestBody: { values: [[nickname, newCount]] }
-            });
-        }
+                data: updates
+            }
+        });
 
-        // If we didn't find the user, we append to UserMap
-        if (userRowIndex === -1) {
-            await sheets.spreadsheets.values.append({
-                spreadsheetId,
-                range: 'UserMap!A:B',
-                valueInputOption: 'USER_ENTERED',
-                requestBody: { values: [[userEmail, uniqueName]] }
-            });
-        }
-
-        res.status(200).json({ uniqueName });
+        res.status(200).json({ uniqueName: newUniqueName });
 
     } catch (error) {
-        console.error('Update Nickname Error:', error);
+        console.error('Update Nickname Hash Error:', error);
         res.status(500).json({ error: error.message });
     }
 };

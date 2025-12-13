@@ -87,10 +87,10 @@ module.exports = async (req, res) => {
             requestBody: {
                 values: [
                     [
-                        nickname || 'Anonymous', // Nickname
+                        userEmail,               // Nickname column now stores Email (for lookup)
                         formattedTime,           // Time (seconds)
                         scramble,                // Scramble
-                        userEmail,               // Email
+                        userEmail,               // Email (Duplicate, but keeps structure)
                         formattedDateOnly,       // Date (YYYY/MM/DD)
                         formattedTimeOnly,       // Time (HH:MM:SS)
                         'Verified'               // Status
