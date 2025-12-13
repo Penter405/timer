@@ -72,7 +72,10 @@ async function syncNickname(email) {
                     const keyCell = cells[i];    // Email
                     const valCell = cells[i + 1];  // Nickname
 
-                    if (keyCell && keyCell.v === email && valCell && valCell.v) {
+                    const cellEmail = (keyCell && keyCell.v) ? String(keyCell.v).trim().toLowerCase() : '';
+                    const searchEmail = String(email).trim().toLowerCase();
+
+                    if (cellEmail === searchEmail && valCell && valCell.v) {
                         foundName = valCell.v;
                         break;
                     }
