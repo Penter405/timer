@@ -11,64 +11,128 @@
 <body>
     <div class="wrap">
         <header>
-            <h1>魔方計時器</h1>
-            <div id="g_id_onload"
-                data-client_id="989488402816-0cvnhchjvak4f16vf1d54pnbhm0dvh3k.apps.googleusercontent.com"
-                data-callback="handleCredentialResponse" data-auto_select="true" data-itp_support="true">
-            </div>
-            <div class="g_id_signin" data-type="standard" data-shape="pill" data-theme="outline" data-text="signin_with"
-                data-size="medium" data-logo_alignment="left" style="margin-left:15px;"></div>
+            <h1 id="navHome" style="cursor:pointer;">魔方計時器</h1>
+            <nav class="navbar">
+                <button id="navHome" class="nav-btn active">首頁</button>
+                <div id="g_id_onload"
+                    data-client_id="989488402816-0cvnhchjvak4f16vf1d54pnbhm0dvh3k.apps.googleusercontent.com"
+                    data-callback="handleCredentialResponse" data-auto_select="true" data-itp_support="true">
+                </div>
+                <div class="g_id_signin" data-type="standard" data-shape="pill" data-theme="outline"
+                    data-text="signin_with" data-size="small" data-logo_alignment="left"></div>
+                <button id="navLogout" class="nav-btn hidden">登出</button>
+                <button id="navMore" class="nav-btn">更多</button>
+            </nav>
             <div style="margin-left:auto;color:var(--muted);font-size:13px">
                 鍵盤：空白鍵開始/停止｜S 重新產生亂序｜I 開始檢查
             </div>
         </header>
-        <div class="grid">
-            <div class="card">
-                <div class="timer">
-                    <div id="inspection" style="color:var(--muted);font-size:14px">檢查：<span id="inspSec">-</span></div>
-                    <div style="height:8px"></div>
-                    <div class="time" id="display">00:00.00<span class="ms" id="ms"></span></div>
-                    <div class="controls">
-                        <button id="toggleInspection" class="small">開始檢查 (I)</button>
-                        <button id="newScramble" class="small">新亂序 (S)</button>
-                        <button id="startBtn" class="primary small">開始/停止 (Space)</button>
+
+        <!-- Multi-Page Container -->
+        <div id="homePage" class="page active">
+            <div class="grid">
+                <div class="card">
+                    <div class="timer">
+                        <div id="inspection" style="color:var(--muted);font-size:14px">檢查：<span id="inspSec">-</span>
+                        </div>
+                        <div style="height:8px"></div>
+                        <div class="time" id="display">00:00.00<span class="ms" id="ms"></span></div>
+                        <div class="controls">
+                            <button id="toggleInspection" class="small">開始檢查 (I)</button>
+                            <button id="newScramble" class="small">新亂序 (S)</button>
+                            <button id="startBtn" class="primary small">開始/停止 (Space)</button>
+                        </div>
+                        <div class="scramble" id="scramble">...</div>
+                        <div style="margin-top:10px;font-size:13px;color:var(--muted)">
+                            按下空白鍵或點擊 <strong>開始/停止</strong> 來計時。檢查時間 15 秒（可關閉）。
+                        </div>
                     </div>
-                    <div class="scramble" id="scramble">...</div>
-                    <div style="margin-top:10px;font-size:13px;color:var(--muted)">
-                        按下空白鍵或點擊 <strong>開始/停止</strong> 來計時。檢查時間 15 秒（可關閉）。
+                </div>
+                <div class="card stats">
+                    <div class="stat-row">
+                        <div>最近時間</div>
+                        <div id="last">-</div>
                     </div>
+                    <div class="stat-row">
+                        <div>平均 (Ao5)</div>
+                        <div id="ao5">-</div>
+                    </div>
+                    <div class="stat-row">
+                        <div>平均 (Ao12)</div>
+                        <div id="ao12">-</div>
+                    </div>
+                    <div class="stat-row">
+                        <div>最佳</div>
+                        <div id="best">-</div>
+                    </div>
+                    <div class="stat-row">
+                        <div>最差</div>
+                        <div id="worst">-</div>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:8px">
+                        <button id="exportCsv" class="small">匯出 CSV</button>
+                        <button id="clear" class="small">清除紀錄</button>
+                    </div>
+                    <div class="history" id="history"></div>
                 </div>
-            </div>
-            <div class="card stats">
-                <div class="stat-row">
-                    <div>最近時間</div>
-                    <div id="last">-</div>
-                </div>
-                <div class="stat-row">
-                    <div>平均 (Ao5)</div>
-                    <div id="ao5">-</div>
-                </div>
-                <div class="stat-row">
-                    <div>平均 (Ao12)</div>
-                    <div id="ao12">-</div>
-                </div>
-                <div class="stat-row">
-                    <div>最佳</div>
-                    <div id="best">-</div>
-                </div>
-                <div class="stat-row">
-                    <div>最差</div>
-                    <div id="worst">-</div>
-                </div>
-                <div style="display:flex;gap:8px;margin-top:8px">
-                    <button id="exportCsv" class="small">匯出 CSV</button>
-                    <button id="clear" class="small">清除紀錄</button>
-                </div>
-                <div class="history" id="history"></div>
             </div>
         </div>
+
+        <!-- Scoreboard Page -->
+        <div id="scoreboardPage" class="page">
+            <div class="page-content">
+                <h2>🏆 記分板</h2>
+                <p style="color:var(--muted)">公開排行榜（從 Google Sheets 讀取）</p>
+                <div id="leaderboard" class="card">
+                    <p>記分板功能開發中...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="settingsPage" class="page">
+            <div class="page-content">
+                <h2>⚙️ 用戶設定</h2>
+                <div class="card">
+                    <div class="settings-group">
+                        <label>暱稱</label>
+                        <input type="text" id="settingsNickname" placeholder="你的名稱 (選填)">
+                    </div>
+                    <div class="settings-group">
+                        <label>檢查時間 (秒)</label>
+                        <input type="number" id="settingsInspectionTime" value="15" min="0" max="30">
+                    </div>
+                    <div class="settings-group">
+                        <label>主題</label>
+                        <select id="settingsTheme">
+                            <option value="dark">深色</option>
+                            <option value="light">淺色 (開發中)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- More Menu Page -->
+        <div id="morePage" class="page">
+            <div class="page-content">
+                <h2>更多選項</h2>
+                <div class="more-menu">
+                    <button id="moreSettings" class="more-item">
+                        <span class="icon">⚙️</span>
+                        <span>用戶設定</span>
+                    </button>
+                    <button id="moreScoreboard" class="more-item">
+                        <span class="icon">🏆</span>
+                        <span>記分板</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <footer>儲存：使用 localStorage（僅本機）。亂序產生器為 3x3 常用步驟。歡迎回報想要的功能。</footer>
     </div>
+    <script src="js/router.js"></script>
     <script src="js/connect.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="script.js"></script>

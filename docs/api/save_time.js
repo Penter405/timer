@@ -39,7 +39,21 @@ module.exports = async (req, res) => {
         // You can also get name, picture, etc.
 
         // 3. Prepare Data for Sheets
-        const { time, scramble, date } = req.body;
+        const { time, scramble, date: rawDate, nickname } = req.body;
+
+        // Custom Formatting
+        // Time: ms -> seconds (34190 -> 34.190)
+        const formattedTime = (time / 1000).toFixed(3);
+
+        // Date: ISO -> YYYY/MM/DD/HH:MM:SS
+        const d = new Date(rawDate);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0'); // Month (0-11)
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const min = String(d.getMinutes()).padStart(2, '0');
+        const ss = String(d.getSeconds()).padStart(2, '0');
+        const formattedDate = `${yyyy}/${mm}/${dd}@${hh}:${min}:${ss}`;
 
         // 4. Authenticate with Google Sheets (Authorization)
         let credentials;
@@ -58,13 +72,21 @@ module.exports = async (req, res) => {
         const sheets = google.sheets({ version: 'v4', auth });
 
         // 5. Append to Sheet
+        // Order: Nickname | Time(s) | Scramble | Email | Date(fmt) | Status
         const response = await sheets.spreadsheets.values.append({
             spreadsheetId: process.env.GOOGLE_SHEET_ID,
-            range: 'Sheet1!A:E', // Adjust range/sheet name as needed
+            range: 'Sheet1!A:F', // Expanded range
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values: [
-                    [date, userEmail, time, scramble, 'Verified']
+                    [
+                        nickname || 'Anonymous', // Nickname
+                        formattedTime,           // Time (seconds)
+                        scramble,                // Scramble
+                        userEmail,               // Email
+                        formattedDate,           // Date (YYYY/MM/DD/HH:MM:SS)
+                        'Verified'               // Status
+                    ]
                 ],
             },
         });

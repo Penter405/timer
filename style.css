@@ -11,7 +11,8 @@
     font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans CJK TC', 'Helvetica Neue', Arial;
 }
 
-html, body {
+html,
+body {
     height: 100%;
     margin: 0;
     background: linear-gradient(180deg, #071021 0%, #081426 100%);
@@ -144,14 +145,122 @@ footer {
     font-size: 13px;
 }
 
+/* Navigation Bar */
+.navbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+    border-radius: 8px;
+    background: var(--glass);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    transition: all 0.2s;
+}
+
+.nav-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.nav-btn.active {
+    background: var(--accent);
+    color: #021124;
+    border: none;
+    font-weight: 600;
+}
+
+.hidden {
+    visibility: hidden !important;
+    pointer-events: none;
+}
+
+/* Page System */
+.page {
+    display: none;
+}
+
+.page.active {
+    display: block;
+}
+
+.page-content {
+    margin-top: 18px;
+}
+
+.page-content h2 {
+    margin: 0 0 12px 0;
+    font-size: 24px;
+}
+
+/* Settings Page */
+.settings-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.settings-group label {
+    font-size: 14px;
+}
+
+.settings-group input,
+.settings-group select {
+    background: var(--glass);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    color: inherit;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+/* More Menu */
+.more-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.more-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: var(--card);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    font-size: 16px;
+    text-align: left;
+    transition: all 0.2s;
+}
+
+.more-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateY(-2px);
+}
+
+.more-item .icon {
+    font-size: 24px;
+}
+
 @media(max-width: 900px) {
     .grid {
         grid-template-columns: 1fr;
     }
+
     .time {
         font-size: 56px;
     }
+
     .wrap {
         padding: 12px;
+    }
+
+    .navbar {
+        flex-wrap: wrap;
     }
 }

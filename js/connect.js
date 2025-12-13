@@ -6,12 +6,28 @@ let googleIdToken = null;
 window.handleCredentialResponse = function (response) {
     if (response.credential) {
         googleIdToken = response.credential;
+
+        // Update login state (defined in router.js)
+        if (typeof loggedIn !== 'undefined') {
+            loggedIn = true;
+            updateNavBar();
+        }
+
         console.log("Signed in with Google");
         // Optional: Show user info or change UI
 
         // Sync check: Maybe upload unsynced times? (Advanced)
     }
 };
+
+// Auto-load nickname on startup
+document.addEventListener('DOMContentLoaded', () => {
+    const savedName = localStorage.getItem('rubik_nickname');
+    const nicknameEl = document.getElementById('settingsNickname');
+    if (savedName && nicknameEl) {
+        nicknameEl.value = savedName;
+    }
+});
 
 function loadTimes() {
     try {
@@ -37,6 +53,17 @@ function saveTimes(arr) {
         // API Endpoint - Points to Vercel Backend
         const API_URL = 'https://timer-neon-two.vercel.app/api/save_time';
 
+        // Get Nickname from Settings (or load from localStorage if not on page)
+        let nickname = '';
+        const nicknameEl = document.getElementById('settingsNickname');
+        if (nicknameEl) {
+            nickname = nicknameEl.value;
+            // Auto-save nickname to local storage preference
+            localStorage.setItem('rubik_nickname', nickname);
+        } else {
+            nickname = localStorage.getItem('rubik_nickname') || '';
+        }
+
         fetch(API_URL, {
             method: 'POST',
             headers: {
@@ -46,7 +73,8 @@ function saveTimes(arr) {
             body: JSON.stringify({
                 time: latestInfo.ms, // raw ms
                 scramble: latestInfo.scramble,
-                date: latestInfo.at
+                date: latestInfo.at,
+                nickname: nickname
             })
         })
             .then(res => res.json())
