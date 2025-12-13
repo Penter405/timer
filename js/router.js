@@ -63,9 +63,21 @@ function handleLogout() {
     googleIdToken = null;
     updateNavBar();
 
+    // Clear User Data from Local Storage and UI
+    localStorage.removeItem('rubik_nickname');
+
+    // Clear Input Box
+    const nicknameEl = document.getElementById('settingsNickname');
+    if (nicknameEl) nicknameEl.value = '';
+
+    // Clear Greeting
+    const greetingEl = document.getElementById('nicknameGreeting');
+    if (greetingEl) greetingEl.textContent = '';
+
     // Disable auto-select for next time
     if (typeof google !== 'undefined' && google.accounts) {
         google.accounts.id.disableAutoSelect();
+        // Optional: Revoke token if you want to force re-consent
     }
 
     console.log('Logged out');
