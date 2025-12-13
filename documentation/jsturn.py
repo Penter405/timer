@@ -20,7 +20,7 @@ button 是否正在被按著 = touching(x)
 按鈕被按下的時間 = touchtime(x)
 該 button 的任務是否還沒完成(function 還沒 return 或 跑完) = running
 用戶設定 = user_setting
-記分板 = score_board
+記分板 = score_board #column: # 暱稱 秒數 日期+時間(日期+時間 下面分成兩個子column 分別放 日期跟時間)
 there is one speacial function , it will return this funcion touched
 touched
 there are two speacial function, it will return Yes or No(1 or 0) if 長按  if 短按 .長按means one second at least , and then 手離開
