@@ -87,12 +87,12 @@ module.exports = async (req, res) => {
             requestBody: {
                 values: [
                     [
-                        userEmail,               // Email (acting as ID)
-                        formattedTime,           // Time (seconds)
-                        scramble,                // Scramble
-                        formattedDateOnly,       // Date (YYYY/MM/DD) (Shifted left)
-                        formattedTimeOnly,       // Time (HH:MM:SS)
-                        'Verified'               // Status
+                        `'${userEmail}`,         // Email - Force Text
+                        `'${formattedTime}`,     // Time - Force Text
+                        `'${scramble}`,          // Scramble - Force Text
+                        `'${formattedDateOnly}`, // Date - Force Text
+                        `'${formattedTimeOnly}`, // Time - Force Text
+                        `'Verified`              // Status - Force Text
                     ]
                 ],
             },
