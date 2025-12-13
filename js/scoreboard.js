@@ -73,7 +73,14 @@ async function fetchLeaderboard() {
             if (!cells) return null;
 
             // Helper to safe get value
-            const getVal = (idx) => cells[idx] ? (cells[idx].v === null ? '' : cells[idx].v) : '';
+            const getVal = (idx) => {
+                let v = cells[idx] ? (cells[idx].v === null ? '' : cells[idx].v) : '';
+                // Remove leading apostrophe if present (inserted by backend to force text)
+                if (typeof v === 'string' && v.startsWith("'")) {
+                    v = v.substring(1);
+                }
+                return v;
+            };
 
             // Time column (1) is passed as string or number in JSON depending on input
             let timeVal = getVal(1);
