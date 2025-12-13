@@ -22,11 +22,14 @@ window.handleCredentialResponse = function (response) {
 
 // Auto-load nickname on startup
 // Auto-load nickname on startup
+// Auto-load nickname on startup
 document.addEventListener('DOMContentLoaded', () => {
     const savedName = localStorage.getItem('rubik_nickname');
     const nicknameEl = document.getElementById('settingsNickname');
-    if (savedName && nicknameEl) {
-        nicknameEl.value = savedName;
+    const greetingEl = document.getElementById('nicknameGreeting');
+
+    if (savedName && greetingEl) {
+        greetingEl.textContent = `你好 ${savedName}`;
     }
 
     const updateBtn = document.getElementById('updateNicknameBtn');
@@ -46,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const API_URL = 'https://timer-neon-two.vercel.app/api/update_nickname';
             // Disable button
             updateBtn.disabled = true;
-            updateBtn.textContent = '上傳中...';
+            updateBtn.textContent = '...';
 
             fetch(API_URL, {
                 method: 'POST',
@@ -62,9 +65,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
                 .then(data => {
                     const uniqueName = data.uniqueName;
-                    alert(`您的暱稱已更新為：${uniqueName}`);
-                    nicknameEl.value = uniqueName;
+                    // Update Greeting, NOT input value
+                    if (greetingEl) greetingEl.textContent = `你好 ${uniqueName}`;
+
+                    // Save to local storage
                     localStorage.setItem('rubik_nickname', uniqueName);
+                    alert(`上傳成功！您的 ID 是：${uniqueName}`);
                 })
                 .catch(err => {
                     console.error(err);
