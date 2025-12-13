@@ -1,23 +1,37 @@
-# Rubik's Cube Timer
+# Rubik's Cube Timer 🧊⏱️
 
-A simple, web-based Rubik's cube timer.
+一個精確、現代化且支援雲端同步的魔方計時器。
 
-## Features
+## 🔗 網站連結
+[**點擊這裡開始計時**](https://penter405.github.io/timer/)
 
-- Scramble generation
-- Inspection timer
-- Statistics (Ao5, Ao12)
-- Local storage support
+## ✨ 功能特色
+*   **精確計時**：支援毫秒級精確度，符合 WCA 操作邏輯（長按啟動）。
+*   **雲端同步**：使用 Google 帳號登入，成績自動保存至雲端資料庫。
+*   **全球排行榜**：即時查看所有玩家的成績排名 (支援 Unique ID 顯示)。
+*   **自訂暱稱**：支援 Discord 風格的唯一 ID 系統 (例如 `Penter#1`)，避免撞名。
+*   **響應式設計**：手機、平板、電腦皆完美支援。
 
-## Future Plans
+## 📖 使用指南
 
-- Google Sheets integration for data storage
+### 1. 基礎操作
+*   **開始/停止**：
+    *   **電腦**：按住 `空白鍵` 等待綠燈亮起，放開開始；按任意鍵停止。
+    *   **手機**：按住螢幕上的計時區域，等待綠燈，放開開始；觸碰螢幕停止。
+*   **生成新打亂**：按 `S` 鍵或點擊打亂公式區域。
+*   **檢視功能**：按 `I` 鍵開啟 WCA 檢視模式 (15秒倒數)。
 
-WCA about time count
-```
-9f) The results of a round are measured as follows:
-9f1) All timed results under 10 minutes, except for 3x3x3 Multi-Blind, are measured and truncated to hundredths of a second. All timed averages and means under 10 minutes are measured and rounded to the nearest hundredth of a second.
-9f1+) EXAMPLE If the timer displays 12.678 for an attempt, the original recorded time is 12.67 (drop any digit after a hundredth of a second). A judge may write the full-precision time on the score sheet (and keep the precision in the calculation of penalties), as long as the score taker truncates it for the official results.
-9f2) All timed results over 10 minutes, as well as all times for 3x3x3 Multi-Blind results, are measured and truncated to seconds. All timed averages and means over 10 minutes are measured and rounded to the nearest second (e.g. X.49 becomes X, X.50 becomes X+1).
-9f2+) ADDITION For 3x3x3 Multi-Blind, the judge should record the number of puzzles solved, the number of puzzles attempted, and the final time. For example, if the competitor solves 3 cubes out of 5 attempted cubes in 40 minutes and 30 seconds, the judge should write down 3/5 40:30.
-```
+### 2. 帳號與排行榜
+1.  點擊右上角的 **Google 登入** 按鈕。
+2.  前往 **「更多」->「設定」** 頁面。
+3.  輸入你想要的暱稱並點擊 **「上傳」**。
+    *   系統會自動分配一個唯一 ID 給你 (例如 `SpeedCuber#1`)。
+4.  之後你的所有成績都會以這個 ID 顯示在排行榜上。
+5.  若未設定暱稱，排行榜將顯示 "Unnamed"。
+
+### 3. 排行榜
+*   點擊導覽列的 **「更多」->「記分板」** 查看全球排名。
+*   支援顯示日期、時間與精確秒數。
+
+---
+*Created by Penter405*
