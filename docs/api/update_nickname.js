@@ -2,17 +2,6 @@ const { google } = require('googleapis');
 const { OAuth2Client } = require('google-auth-library');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-const BUCKET_SIZE = 100; // Modulo. Uses 200 columns.
-
-// Simple string hash function
-function getBucketIndex(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) - hash) + str.charCodeAt(i);
-        hash |= 0;
-    }
-    return Math.abs(hash) % BUCKET_SIZE;
-}
 
 // Convert 0-based column index to A1 notation letter (e.g. 0->A, 26->AA)
 function getColumnLetter(colIndex) {
@@ -32,6 +21,16 @@ function getBucketRange(sheetName, bucketIndex) {
     const startLetter = getColumnLetter(startCol);
     const endLetter = getColumnLetter(endCol);
     return `${sheetName}!${startLetter}:${endLetter}`;
+}
+
+// Simple string hash function
+function getBucketIndex(str, bucketSize) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash) % bucketSize;
 }
 
 module.exports = async (req, res) => {
@@ -77,13 +76,40 @@ module.exports = async (req, res) => {
         const sheets = google.sheets({ version: 'v4', auth });
         const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
-        // 3. Logic: UserMap Hash Lookup (Email -> UniqueName)
-        const userBucket = getBucketIndex(userEmail);
-        const userRange = getBucketRange('UserMap', userBucket); // e.g. UserMap!C:D
+        // 3. Dynamic Bucket Sizing
+        // Fetch spreadsheet metadata to check column counts using a Field Mask for efficiency
+        const meta = await sheets.spreadsheets.get({
+            spreadsheetId,
+            fields: 'sheets.properties(title,gridProperties.columnCount)'
+        });
 
-        // 4. Logic: Counts Hash Lookup (Nickname -> Count)
-        const countBucket = getBucketIndex(nickname);
-        const countRange = getBucketRange('Counts', countBucket); // e.g. Counts!E:F
+        const sheetProps = meta.data.sheets.map(s => s.properties);
+        const userMapProps = sheetProps.find(p => p.title === 'UserMap');
+        const countsProps = sheetProps.find(p => p.title === 'Counts');
+
+        if (!userMapProps || !countsProps) {
+            throw new Error("Missing required sheets: 'UserMap' or 'Counts'. Please create them.");
+        }
+
+        const userCols = userMapProps.gridProperties.columnCount || 26;
+        const countCols = countsProps.gridProperties.columnCount || 26;
+
+        // Calculate Bucket Size based on available columns
+        // Each bucket needs 2 columns.
+        const userBucketSize = Math.floor(userCols / 2);
+        const countBucketSize = Math.floor(countCols / 2);
+
+        // We use the same Hash logic, but potentially different modulo if we wanted.
+        // For simplicity, let's calculate indices separately based on each sheet's capacity.
+        // This is safe because we hash Key -> Index.
+
+        // 4. Logic: UserMap Hash Lookup (Email -> UniqueName)
+        const userBucket = getBucketIndex(userEmail, userBucketSize);
+        const userRange = getBucketRange('UserMap', userBucket);
+
+        // 5. Logic: Counts Hash Lookup (Nickname -> Count)
+        const countBucket = getBucketIndex(nickname, countBucketSize);
+        const countRange = getBucketRange('Counts', countBucket);
 
         // Batch Get Both Buckets
         const getRes = await sheets.spreadsheets.values.batchGet({
@@ -120,34 +146,23 @@ module.exports = async (req, res) => {
 
         // --- Decision ---
         // Always generate new unique name based on requested nickname
-        // 1. Increment Count
         const newCount = currentCount + 1;
-
-        // 2. Form Unique Name
         const newUniqueName = `${nickname}#${newCount}`;
 
-        // 3. Prepare Writes
+        // --- Prepare Writes ---
         const updates = [];
 
         // Write to Counts
-        // If key exists (collision match), update Value
-        // If key not exists, append to end of bucket
         const countStartColLetter = getColumnLetter(countBucket * 2);
         const countValColLetter = getColumnLetter(countBucket * 2 + 1);
 
         if (countRowIdx !== -1) {
-            // Update existing count: Counts!{ValCol}{Row}
-            // Row is 1-based. 
-            // Warning: batchGet ranges are usually relative to A1, 
-            // but the data array index matches row number if we fetched full column.
             const rowNum = countRowIdx + 1;
             updates.push({
                 range: `Counts!${countValColLetter}${rowNum}`,
                 values: [[newCount]]
             });
         } else {
-            // Append new Key-Value pair to the first empty row in this bucket
-            // Or just use the next row index
             const nextRow = countRows.length + 1;
             updates.push({
                 range: `Counts!${countStartColLetter}${nextRow}:${countValColLetter}${nextRow}`,
@@ -156,7 +171,6 @@ module.exports = async (req, res) => {
         }
 
         // Write to UserMap
-        // Always update mapping to new name
         const userStartColLetter = getColumnLetter(userBucket * 2);
         const userValColLetter = getColumnLetter(userBucket * 2 + 1);
 
