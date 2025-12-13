@@ -45,14 +45,19 @@ module.exports = async (req, res) => {
         // Time: ms -> seconds (34190 -> 34.190)
         const formattedTime = (time / 1000).toFixed(3);
 
-        // Date: ISO -> YYYY/MM/DD/HH:MM:SS
+        // Date: ISO -> YYYY/MM/DD@HH:MM:SS (UTC+8)
         const d = new Date(rawDate);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0'); // Month (0-11)
-        const dd = String(d.getDate()).padStart(2, '0');
-        const hh = String(d.getHours()).padStart(2, '0');
-        const min = String(d.getMinutes()).padStart(2, '0');
-        const ss = String(d.getSeconds()).padStart(2, '0');
+
+        // Convert to Taipei Time string first to handle timezone correctly
+        const twDateStr = d.toLocaleString('en-US', { timeZone: 'Asia/Taipei', hour12: false });
+        const twDate = new Date(twDateStr); // Create new Date object from the shifted time string
+
+        const yyyy = twDate.getFullYear();
+        const mm = String(twDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(twDate.getDate()).padStart(2, '0');
+        const hh = String(twDate.getHours()).padStart(2, '0');
+        const min = String(twDate.getMinutes()).padStart(2, '0');
+        const ss = String(twDate.getSeconds()).padStart(2, '0');
         const formattedDate = `${yyyy}/${mm}/${dd}@${hh}:${min}:${ss}`;
 
         // 4. Authenticate with Google Sheets (Authorization)
