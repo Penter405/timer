@@ -76,3 +76,75 @@
 1.  `Sheet1`: 儲存成績 (公開檢視)。
 2.  `Counts`: 儲存暱稱計數 (Hash Table Bucket)。
 3.  `UserMap`: 儲存 Email 對應 (Hash Table Bucket)。
+
+## 🔮 未來架構：Hybrid Database (Plan B)
+
+為了能同時擁有 **MongoDB 的高效能** 與 **Google Sheets 的易用備份**，且預防單一平台 (Vercel) 資源耗盡，我們設計了以下架構。
+
+### System Flowchart
+
+> [!IMPORTANT]
+> **API Guard (保全)** 是整個架構的核心。絕對**不能**讓前端直接連線資料庫，否則帳號密碼會直接外洩。
+
+```mermaid
+graph TD
+    User((User 👤))
+    Frontend[Web Frontend 💻]
+    
+    subgraph "The Guard (Backend API)"
+        LB{Load Balancer ⚖️}
+        CF[Cloudflare Primary ⚡]
+        Vercel[Vercel Backup 🛡️]
+    end
+    
+    subgraph "Database Layer (Hybrid)"
+        Mongo[(MongoDB Atlas 🍃)]
+        Sheets[Google Sheets 📊]
+    end
+
+    %% Normal Flow
+    User -->|Interact| Frontend
+    Frontend -->|API Request| LB
+    
+    %% Failover Logic
+    LB -->|Priority 1| CF
+    LB -.->|Failover| Vercel
+    
+
+    IO= Write(I)..read(O)
+    CF -->|I| Mongo
+
+    %% Write Flow (Dual Write)
+    CF -->|1. Write (Fast)| Mongo
+    CF -->|2. Write (Backup)| Sheets
+    Vercel -->|1. Write (Fast)| Mongo
+    Vercel -->|2. Write (Backup)| Sheets
+    
+    %% Read Flow (Fallback Logic)
+    CF -->|1. Read (Cache)| Mongo
+    Mongo -.->|If Full/Empty| CF
+    CF -.->|2. Fallback Read| Sheets
+    
+    Vercel -->|1. Read (Cache)| Mongo
+    Mongo -.->|If Full/Empty| Vercel
+    Vercel -.->|2. Fallback Read| Sheets
+    
+    %% Danger Zone Visual
+    Frontend -.->|❌ DIRECT CONNECT (DANGER)| Mongo
+    style Frontend stroke:#f00,stroke-width:2px
+    style Mongo stroke:#0f0,stroke-width:2px
+    style CF stroke:#00f,stroke-width:2px
+    style Vercel stroke:#888,stroke-width:1px
+    
+    %% Apply Red to Mandatory API Paths
+    linkStyle 1,2,3,4,6,7,8,9,10,12,13,15 stroke:#ff0000,stroke-width:2px,color:red;
+```
+
+### 架構說明
+1.  **Safety First**: 所有資料庫存取都**必須**經過後端 API (Cloudflare 或 Vercel)。圖中 `❌ DIRECT CONNECT` 代表如果繞過 API 直接連，就是資安自殺行為。
+2.  **High Availability (HA)**: 
+    *   **Load Balancer (Client-side)**: 前端可以寫一個簡單的邏輯，預設打 Cloudflare (每天 10萬次免費)。
+    *   **Failover**: 如果 Cloudflare 回傳 5xx 錯誤或掛掉，前端自動重試打 Vercel (作為備援)。
+3.  **Hybrid Storage**:
+    *   **MongoDB**: 作為資料的 **Source of Truth** (讀取用它)。
+    *   **Google Sheets**: 作為 **Cold Backup** (也不怕 Mongo 爆空間，因為 Sheets 有 15GB)。

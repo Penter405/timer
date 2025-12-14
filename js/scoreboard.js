@@ -1,44 +1,20 @@
 const SHEET_ID = '1RlcaqvG1fiSXPhQBoidYVk3dwsi1bojO6Y9FnF1ZYoY';
-// Use Google Visualization API Query Language to get JSON
-const JSON_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
-const USER_MAP_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=UserMap`;
+// Target 'ScoreBoard' sheet now
+const JSON_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=ScoreBoard`;
+const API_NICKNAMES_URL = 'https://timer-neon-two.vercel.app/api/get_nicknames'; // Vercel API
 
-async function fetchUserMap() {
+async function fetchNicknamesFromAPI(ids) {
+    if (!ids || ids.length === 0) return {};
     try {
-        const response = await fetch(USER_MAP_URL);
-        if (!response.ok) return {}; // Fail silent, show emails
-
-        const text = await response.text();
-        const jsonString = text.substring(47).slice(0, -2);
-        const json = JSON.parse(jsonString);
-
-        // Parse Column-Based Hash Table (Bucket Size = 100 => 200 Cols)
-        // Scan all rows and all column pairs
-        const map = {};
-        const rows = json.table.rows;
-
-        if (!rows) return {};
-
-        rows.forEach(row => {
-            const cells = row.c;
-            if (!cells) return;
-
-            // Loop through column pairs (Bucket 0 to 99+)
-            // Safer to just loop through all cells in pairs
-            for (let i = 0; i < cells.length - 1; i += 2) {
-                const keyCell = cells[i];
-                const valCell = cells[i + 1];
-
-                if (keyCell && keyCell.v && valCell && valCell.v) {
-                    map[keyCell.v] = valCell.v;
-                }
-            }
+        const res = await fetch(API_NICKNAMES_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: [...new Set(ids)] }) // Unique IDs
         });
-
-        return map;
-
+        if (!res.ok) throw new Error('API Error');
+        return await res.json();
     } catch (e) {
-        console.error("Fetch User Map Error", e);
+        console.error("Fetch Nicknames API Error", e);
         return {};
     }
 }
@@ -50,64 +26,68 @@ async function fetchLeaderboard() {
     container.innerHTML = '<p>正在讀取排行榜...</p>';
 
     try {
-        // Parallel Fetch: Scoreboard & UserMap
-        const [boardRes, userMap] = await Promise.all([
-            fetch(JSON_URL),
-            fetchUserMap()
-        ]);
-
+        // 1. Fetch Scoreboard Data (Public)
+        const boardRes = await fetch(JSON_URL);
         if (!boardRes.ok) throw new Error('Network error');
 
         const text = await boardRes.text();
-        // The response comes wrapped in: /*O_o*/ google.visualization.Query.setResponse({...});
-        // We need to extract the JSON object.
         const jsonString = text.substring(47).slice(0, -2);
         const json = JSON.parse(jsonString);
 
+        if (!json.table || !json.table.rows) {
+            renderLeaderboard([]);
+            return;
+        }
+
         const rows = json.table.rows;
 
-        // Map JSON data to our structure
-        // Columns: 0:Email(was Nickname), 1:Time, 2:Scramble, 3:Email, 4:Date, 5:TimeStr, 6:Status
-        const times = rows.map(row => {
-            const cells = row.c;
-            if (!cells) return null;
+        // 2. Extract User IDs to resolve (Col 0)
+        const idsToResolve = [];
 
-            // Helper to safe get value
-            const getVal = (idx) => {
-                let v = cells[idx] ? (cells[idx].v === null ? '' : cells[idx].v) : '';
-                // Remove leading apostrophe if present (inserted by backend to force text)
-                if (typeof v === 'string' && v.startsWith("'")) {
-                    v = v.substring(1);
-                }
-                return v;
-            };
+        // Helper to safe get value
+        const getVal = (row, idx) => {
+            const cell = row.c[idx];
+            let v = cell ? (cell.v === null ? '' : cell.v) : '';
+            if (typeof v === 'string' && v.startsWith("'")) v = v.substring(1);
+            return v;
+        };
 
-            // Time column (1) is passed as string or number in JSON depending on input
-            let timeVal = getVal(1);
-            // If it's a string, try parse; if it's number, use it.
-            // Google Sheets JSON might treat numbers as numbers.
+        const rawData = rows.map(row => {
+            const c = row.c;
+            if (!c) return null;
+
+            const userId = getVal(row, 0); // Col A: UserID
+            if (userId) idsToResolve.push(userId);
+
+            // Time column (1)
+            let timeVal = getVal(row, 1);
             const time = parseFloat(timeVal);
 
             if (isNaN(time)) return null;
 
-            // Lookup Nickname using Email (Col 0)
-            const email = getVal(0);
-            // If email is in map, use it. Else show First part of email or 'Anonymous'
-            let displayName = userMap[email];
-
-            if (!displayName) {
-                displayName = 'Unnamed';
-            }
-
             return {
-                nickname: displayName,
+                userId: userId,
                 time: time,
-                scramble: getVal(2),
-                date: getVal(3),
-                timeStr: getVal(4),
-                status: getVal(5)
+                scramble: getVal(row, 2),
+                date: getVal(row, 3),
+                timeStr: getVal(row, 4),
+                status: getVal(row, 5)
             };
         }).filter(item => item !== null);
+
+        // 3. Resolve Nicknames via Backend API (Privacy Safe)
+        const nicknameMap = await fetchNicknamesFromAPI(idsToResolve);
+
+        // 4. Merge Data
+        const times = rawData.map(item => {
+            let displayName = nicknameMap[item.userId];
+            if (!displayName) displayName = `User#${item.userId}`; // Fallback
+
+            return {
+                ...item,
+                nickname: displayName
+            };
+        });
 
         // Sort by time (ascending)
         times.sort((a, b) => a.time - b.time);
@@ -116,12 +96,9 @@ async function fetchLeaderboard() {
 
     } catch (err) {
         console.error(err);
-        container.innerHTML = `<p style="color:red">無法讀取排行榜<br><small>請確認 Google Sheet 已開啟「知道連結者可檢視」權限，並且存在 UserMap 分頁。</small></p>`;
+        container.innerHTML = `<p style="color:red">無法讀取排行榜<br><small>請確認網路連線或 API 是否正常運作。</small></p>`;
     }
 }
-
-// parseCSV function removed as we are using JSON now
-
 
 function renderLeaderboard(data) {
     const container = document.getElementById('leaderboard');
@@ -175,4 +152,11 @@ function escapeHtml(text) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
+
+/* Expose to Global Scope for Router */
+// If not already exposed (though script.js usually calls it directly or it runs on load)
+if (typeof window !== 'undefined') {
+    window.fetchLeaderboard = fetchLeaderboard;
+}
+
 

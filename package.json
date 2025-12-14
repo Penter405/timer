@@ -1,0 +1,14 @@
+{
+  "name": "rubiks-timer",
+  "version": "1.0.0",
+  "description": "Rubik's Cube Timer & Scrambler with Hybrid Backend",
+  "dependencies": {
+    "googleapis": "^126.0.1",
+    "google-auth-library": "^9.0.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
