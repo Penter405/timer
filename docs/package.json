@@ -1,9 +1,0 @@
-{
-  "name": "rubiks-timer-backend",
-  "version": "1.0.0",
-  "description": "Backend for Rubik's Timer using Vercel Serverless Functions",
-  "dependencies": {
-    "googleapis": "^126.0.1",
-    "google-auth-library": "^9.0.0"
-  }
-}
