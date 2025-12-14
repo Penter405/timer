@@ -50,49 +50,10 @@ function parseJwt(token) {
 // Constants SHEET_ID and USER_MAP_URL are defined in scoreboard.js (loaded first)
 
 async function syncNickname(email) {
-    try {
-        const response = await fetch(USER_MAP_URL);
-        if (!response.ok) return;
-
-        const text = await response.text();
-        const jsonString = text.substring(47).slice(0, -2);
-        const json = JSON.parse(jsonString);
-
-        let foundName = null;
-        const rows = json.table.rows;
-
-        if (rows) {
-            for (const row of rows) {
-                const cells = row.c;
-                if (!cells) continue;
-                // Check all Pair Columns (Bucket Check)
-                for (let i = 0; i < cells.length - 1; i += 2) {
-                    const keyCell = cells[i];    // Email
-                    const valCell = cells[i + 1];  // Nickname
-
-                    const cellEmail = (keyCell && keyCell.v) ? String(keyCell.v).trim().toLowerCase() : '';
-                    const searchEmail = String(email).trim().toLowerCase();
-
-                    if (cellEmail === searchEmail && valCell && valCell.v) {
-                        foundName = valCell.v;
-                        break;
-                    }
-                }
-                if (foundName) break;
-            }
-        }
-
-        if (foundName) {
-            console.log("Synced nickname from cloud:", foundName);
-            localStorage.setItem('rubik_nickname', foundName);
-            const greetingEl = document.getElementById('nicknameGreeting');
-            if (greetingEl) {
-                greetingEl.textContent = `你好 ${foundName}`;
-            }
-        }
-    } catch (e) {
-        console.error("Sync Nickname Error", e);
-    }
+    // Legacy Sync removed for Split Architecture (Privacy).
+    // We cannot look up Email -> Nickname on client side anymore.
+    // User must click "Update Nickname" to retrieve/set their identity.
+    console.log("Skipping legacy sync for privacy.");
 }
 
 // Auto-load nickname on startup
