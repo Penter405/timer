@@ -31,8 +31,19 @@ function getBucketIndex(str, bucketSize) {
 }
 
 module.exports = async (req, res) => {
+    // Dynamic CORS to support multiple origins (GitHub Pages + Localhost)
+    const allowedOrigins = ['https://penter405.github.io', 'http://localhost:8080', 'http://127.0.0.1:8080'];
+    const origin = req.headers.origin;
+
+    if (allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+        // Fallback for non-browser or unknown origins, though normally we might block.
+        // For debugging, we might let it through or just set it to the Main one.
+        res.setHeader('Access-Control-Allow-Origin', 'https://penter405.github.io');
+    }
+
     res.setHeader('Access-Control-Allow-Credentials', true);
-    res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 

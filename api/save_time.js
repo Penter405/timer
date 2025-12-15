@@ -29,6 +29,20 @@ function getBucketIndex(str, bucketSize) {
 }
 
 module.exports = async (req, res) => {
+    // Dynamic CORS to support multiple origins (GitHub Pages + Localhost)
+    const allowedOrigins = ['https://penter405.github.io', 'http://localhost:8080', 'http://127.0.0.1:8080'];
+    const origin = req.headers.origin;
+
+    if (allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+        res.setHeader('Access-Control-Allow-Origin', 'https://penter405.github.io');
+    }
+
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
     if (req.method === 'OPTIONS') { res.status(200).end(); return; }
     if (req.method !== 'POST') { return res.status(405).json({ error: 'Method Not Allowed' }); }
 
