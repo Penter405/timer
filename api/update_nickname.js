@@ -41,7 +41,8 @@ module.exports = async (req, res) => {
 
     try {
         const { token, nickname } = req.body;
-        if (!token || !nickname) return res.status(400).json({ error: 'Missing token or nickname' });
+        if (!token) return res.status(400).json({ error: 'Missing token' });
+        // Nickname is now optional. If missing, we just register/fetch the ID.
 
         // 1. Verify Google Token
         const ticket = await client.verifyIdToken({ idToken: token, audience: process.env.GOOGLE_CLIENT_ID });
@@ -68,17 +69,24 @@ module.exports = async (req, res) => {
 
         const userBucket = getBucketIndex(userEmail, userBucketSize);
         const userRange = getBucketRange('UserMap', userBucket);
-        const countBucket = getBucketIndex(nickname, countBucketSize);
-        const countRange = getBucketRange('Counts', countBucket);
 
-        // 4. Batch Get (UserMap + Counts)
+        let countBucket, countRange;
+        if (nickname) {
+            countBucket = getBucketIndex(nickname, countBucketSize);
+            countRange = getBucketRange('Counts', countBucket);
+        }
+
+        // 4. Batch Get (UserMap + Counts) - Counts only needed if nickname provided
+        const ranges = [userRange];
+        if (nickname) ranges.push(countRange);
+
         const getRes = await sheets.spreadsheets.values.batchGet({
             spreadsheetId,
-            ranges: [userRange, countRange]
+            ranges: ranges
         });
 
         const userRows = getRes.data.valueRanges[0].values || [];
-        const countRows = getRes.data.valueRanges[1].values || [];
+        const countRows = (nickname && getRes.data.valueRanges[1]) ? (getRes.data.valueRanges[1].values || []) : [];
 
         // --- Process UserMap Lookup ---
         let existingID = null;
@@ -102,23 +110,29 @@ module.exports = async (req, res) => {
         // BUT for 'Total' sheet we just store the nickname without the hash? 
         // Or do we store the full unique name? Let's store full unique name.
 
-        // Calculate New Unique Name first
-        let currentCount = 0;
+        // Calculate New Unique Name (Only if nickname provided)
+        let newUniqueName = null;
         let countRowIdx = -1;
-        for (let i = 0; i < countRows.length; i++) {
-            if (countRows[i][0] === nickname) {
-                currentCount = parseInt(countRows[i][1] || '0');
-                countRowIdx = i;
-                break;
+        let currentCount = 0;
+        let newCount = 0;
+
+        if (nickname) {
+            for (let i = 0; i < countRows.length; i++) {
+                if (countRows[i][0] === nickname) {
+                    currentCount = parseInt(countRows[i][1] || '0');
+                    countRowIdx = i;
+                    break;
+                }
             }
+            newCount = currentCount + 1;
+            newUniqueName = `${nickname}#${newCount}`;
         }
 
         // Logic: Only increment generation if this ISN'T the same user keeping their name.
         // But for simplicity, we always return the unique name.
         // If user already has this nickname (e.g. existingUniqueName starts with `nickname#`), we could reuse?
         // Let's generate new always for safety to avoid collisions.
-        const newCount = currentCount + 1;
-        const newUniqueName = `${nickname}#${newCount}`;
+
 
 
         if (!userID) {
@@ -148,20 +162,23 @@ module.exports = async (req, res) => {
         // --- Prepare Writes to UserMap and Counts ---
         const updates = [];
 
-        // 1. Write to Counts
-        const countStartColLetter = getColumnLetter(countBucket * 2);
-        const countValColLetter = getColumnLetter(countBucket * 2 + 1);
-        if (countRowIdx !== -1) {
-            const rowNum = countRowIdx + 1;
-            updates.push({ range: `Counts!${countValColLetter}${rowNum}`, values: [[newCount]] });
-        } else {
-            const nextRow = countRows.length + 1;
-            updates.push({ range: `Counts!${countStartColLetter}${nextRow}:${countValColLetter}${nextRow}`, values: [[nickname, newCount]] });
+        // 1. Write to Counts (Only if nickname provided)
+        if (nickname) {
+            const countStartColLetter = getColumnLetter(countBucket * 2);
+            const countValColLetter = getColumnLetter(countBucket * 2 + 1);
+            if (countRowIdx !== -1) {
+                const rowNum = countRowIdx + 1;
+                updates.push({ range: `Counts!${countValColLetter}${rowNum}`, values: [[newCount]] });
+            } else {
+                const nextRow = countRows.length + 1;
+                updates.push({ range: `Counts!${countStartColLetter}${nextRow}:${countValColLetter}${nextRow}`, values: [[nickname, newCount]] });
+            }
         }
 
         // 2. Write to UserMap [Email, ID, UniqueName]
+        // If nickname is NULL, we still write [Email, ID, ""] to ensure UserMap exists for this user.
         const userStartColLetter = getColumnLetter(userBucket * 3);
-        const userRow = [userEmail, userID, newUniqueName];
+        const userRow = [userEmail, userID, newUniqueName || ''];
 
         if (userRowIdx !== -1) {
             const rowNum = userRowIdx + 1;
