@@ -1,0 +1,17 @@
+{
+    "version": 2,
+    "rewrites": [
+        {
+            "source": "/api/update_nickname",
+            "destination": "/api/update_nickname.js"
+        },
+        {
+            "source": "/api/save_time",
+            "destination": "/api/save_time.js"
+        },
+        {
+            "source": "/api/get_nicknames",
+            "destination": "/api/get_nicknames.js"
+        }
+    ]
+}
