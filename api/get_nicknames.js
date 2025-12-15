@@ -1,6 +1,34 @@
 const { google } = require('googleapis');
 const { OAuth2Client } = require('google-auth-library');
 
+// --- Helper Functions (Duplicated from update_nickname.js for isolation) ---
+function getColumnLetter(colIndex) {
+    let temp, letter = '';
+    while (colIndex >= 0) {
+        temp = colIndex % 26;
+        letter = String.fromCharCode(temp + 65) + letter;
+        colIndex = Math.floor(colIndex / 26) - 1;
+    }
+    return letter;
+}
+
+function getBucketRange(sheetName, bucketIndex) {
+    const startCol = bucketIndex * 3; // 3 columns: Email, ID, Nickname
+    const endCol = startCol + 2;
+    const startLetter = getColumnLetter(startCol);
+    const endLetter = getColumnLetter(endCol);
+    return `${sheetName}!${startLetter}:${endLetter}`;
+}
+
+function getBucketIndex(str, bucketSize) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash) % bucketSize;
+}
+
 module.exports = async (req, res) => {
     // 1. CORS
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -30,37 +58,90 @@ module.exports = async (req, res) => {
         const sheets = google.sheets({ version: 'v4', auth });
         const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
-        // 3. Optimization Strategy
-        // Instead of fetching individual rows (quota heavy), we fetch the entire Nickname column (Col B).
-        // Total!B:B.
-        // ID 1 is Row 1.
+        // 3. Metadata for Bucketing
+        const meta = await sheets.spreadsheets.get({ spreadsheetId, fields: 'sheets.properties(title,gridProperties.columnCount)' });
+        const userMapProps = meta.data.sheets.find(s => s.properties.title === 'UserMap');
+        if (!userMapProps) throw new Error("Missing 'UserMap' sheet");
 
-        // Fetch Total!B:B
-        const getRes = await sheets.spreadsheets.values.get({
+        const userCols = userMapProps.properties.gridProperties.columnCount || 26;
+        const userBucketSize = Math.floor(userCols / 3);
+
+        // 4. Step A: Get Emails from Total Sheet (ID -> Email)
+        // IDs correspond to Row Numbers in 'Total'. Email is in Column A.
+        const headerRanges = ids.map(id => `Total!A${id}`);
+        // Deduplicate ranges to save quota if duplicate IDs requested
+        const uniqueRanges = [...new Set(headerRanges)];
+
+        const totalRes = await sheets.spreadsheets.values.batchGet({
             spreadsheetId,
-            range: 'Total!B:B'
+            ranges: uniqueRanges
         });
 
-        const rows = getRes.data.values || [];
-        const resultMap = {};
+        const idToEmail = {};
+        const emailsToResolve = [];
 
-        // 4. Map IDs to Nicknames
-        // Note: Sheets API is 1-indexed for rows, but array is 0-indexed.
-        // Row 1 is index 0.
-        // So ID 1 (Row 1) = rows[0].
+        // Map the results back to IDs
+        // batchGet returns valueRanges in same order as requested
+        totalRes.data.valueRanges.forEach((rangeData, idx) => {
+            const rangeStr = rangeData.range; // e.g. 'Total!A5'
+            // Extract Row Number from Range (safer than index assumption if some fail?)
+            // Actually batchGet index matches request index.
+            // Let's recover the requested ID from our uniqueRanges array
+            const reqRange = uniqueRanges[idx]; // 'Total!A5'
+            const reqId = reqRange.replace('Total!A', ''); // '5'
 
-        ids.forEach(id => {
-            const rowIndex = parseInt(id) - 1;
-            if (rowIndex >= 0 && rowIndex < rows.length) {
-                // Return nickname if exists, else fallback
-                const nick = rows[rowIndex][0];
-                if (nick) {
-                    resultMap[id] = nick;
-                }
+            if (rangeData.values && rangeData.values[0] && rangeData.values[0][0]) {
+                const email = rangeData.values[0][0];
+                idToEmail[reqId] = email;
+                emailsToResolve.push(email);
             }
         });
 
-        return res.status(200).json(resultMap);
+        // 5. Step B: Get Nicknames from UserMap (Email -> Hash -> UserMap -> Nickname)
+        const bucketMap = {}; // bucketIdx -> [emails]
+
+        emailsToResolve.forEach(email => {
+            const bIdx = getBucketIndex(email, userBucketSize);
+            if (!bucketMap[bIdx]) bucketMap[bIdx] = [];
+            bucketMap[bIdx].push(email);
+        });
+
+        const uniqueBuckets = Object.keys(bucketMap);
+        if (uniqueBuckets.length === 0) return res.status(200).json({});
+
+        const bucketRanges = uniqueBuckets.map(bIdx => getBucketRange('UserMap', bIdx));
+
+        const bucketRes = await sheets.spreadsheets.values.batchGet({
+            spreadsheetId,
+            ranges: bucketRanges
+        });
+
+        const emailToNickname = {};
+
+        // Process each bucket result
+        bucketRes.data.valueRanges.forEach(vr => {
+            const rows = vr.values || [];
+            rows.forEach(row => {
+                // Row: [Email, ID, Nickname]
+                if (row.length >= 3) {
+                    emailToNickname[row[0]] = row[2];
+                }
+            });
+        });
+
+        // 6. Final Map: ID -> Nickname
+        const finalMap = {};
+        ids.forEach(id => {
+            const email = idToEmail[id];
+            if (email && emailToNickname[email]) {
+                finalMap[id] = emailToNickname[email];
+            } else {
+                // Fallback? Or just leave undefined
+                // Client side falls back to "User#ID"
+            }
+        });
+
+        return res.status(200).json(finalMap);
 
     } catch (error) {
         console.error('Get Nicknames Error:', error);
