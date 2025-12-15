@@ -146,5 +146,37 @@ graph TD
     *   **Load Balancer (Client-side)**: 前端可以寫一個簡單的邏輯，預設打 Cloudflare (每天 10萬次免費)。
     *   **Failover**: 如果 Cloudflare 回傳 5xx 錯誤或掛掉，前端自動重試打 Vercel (作為備援)。
 3.  **Hybrid Storage**:
-    *   **MongoDB**: 作為資料的 **Source of Truth** (讀取用它)。
     *   **Google Sheets**: 作為 **Cold Backup** (也不怕 Mongo 爆空間，因為 Sheets 有 15GB)。
+
+## 6. Deployment & Security (CORS) 🛡️
+
+### CORS 與 Vercel 設定決策
+在開發過程中，我們遇到了一個關鍵的架構選擇：**如何處理跨域資源共享 (CORS)**。
+
+#### 1. Zero Config (推薦方案 ✅)
+Vercel 預設採用 **Zero Configuration** 模式。
+*   **路由**: 自動將 `/api/function` 對應到 `api/function.js`。
+*   **優點**: 最穩定，不會發生 404 錯誤。
+*   **缺點**: 預設不處理 CORS。
+*   **解決方案**: 我們必須在**每個 Serverless Function 的程式碼中**手動處理 `OPTIONS` 請求與 Headers (如 `api/update_nickname.js`)。
+
+#### 2. `vercel.json` (不推薦 ❌)
+我們一度嘗試使用 `vercel.json` 全域設定 Header：
+```json
+{ "headers": [ { "source": "/api/(.*)", "headers": [ { "key": "Access-Control-Allow-Origin", "value": "*" } ] } ] }
+```
+*   **問題**: 
+    1.  **路由衝突**: 複雜的 source 對應反而導致 Vercel 找不到檔案 (404 Not Found)。
+    2.  **安全衝突**: 瀏覽器規定 `Access-Control-Allow-Credentials: true` 時，Origin 不能為 `*`。靜態設定檔難以實現「動態回應 Origin」的需求。
+
+### 結論
+我們最終移除 `vercel.json`，回歸 **Zero Config**，並在程式碼層級實現安全的動態 CORS：
+```javascript
+// Dynamic Origin Echoing
+const allowedOrigins = ['https://penter405.github.io', 'http://localhost:8080'];
+if (allowedOrigins.includes(req.headers.origin)) {
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+}
+res.setHeader('Access-Control-Allow-Credentials', true);
+```
+這確保了既能正常路由，又能通過嚴格的瀏覽器 CORS 檢查。
