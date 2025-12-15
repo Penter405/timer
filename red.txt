@@ -1,0 +1,225 @@
+first red in github:
+
+https://penter405.github.io/favicon.ico
+要求方法
+GET
+狀態代碼
+404 Not Found
+遠端位址
+185.199.109.153:443
+查閱者原則
+strict-origin-when-cross-origin
+accept-ranges
+bytes
+age
+113
+content-encoding
+gzip
+content-length
+5142
+content-security-policy
+default-src 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'
+content-type
+text/html; charset=utf-8
+date
+Mon, 15 Dec 2025 15:54:04 GMT
+etag
+W/"693afc34-239b"
+server
+GitHub.com
+vary
+Accept-Encoding
+via
+1.1 varnish
+x-cache
+HIT
+x-cache-hits
+0
+x-fastly-request-id
+834a98f00de8063821cc399a10f0023527fc17f1
+x-github-request-id
+3E7E:1AF9E2:3DADB:406F8:69402EAB
+x-served-by
+cache-sin-wsss1830030-SIN
+x-timer
+S1765814045.568853,VS0,VE2
+:authority
+penter405.github.io
+:method
+GET
+:path
+/favicon.ico
+:scheme
+https
+accept
+image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8
+accept-encoding
+gzip, deflate, br, zstd
+accept-language
+zh-TW,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6
+cache-control
+no-cache
+cookie
+g_state={"i_l":0,"i_ll":1765814045181,"i_b":"NnradbPb2QjxquBNer9JspC1i1YHmdrRWl9O3kl9EFM","i_e":{"enable_itp_optimization":0}}
+pragma
+no-cache
+priority
+u=1, i
+referer
+https://penter405.github.io/timer/
+sec-ch-ua
+"Microsoft Edge";v="143", "Chromium";v="143", "Not A(Brand";v="24"
+sec-ch-ua-mobile
+?1
+sec-ch-ua-platform
+"Android"
+sec-fetch-dest
+image
+sec-fetch-mode
+no-cors
+sec-fetch-site
+same-origin
+user-agent
+Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36 Edg/143.0.0.0
+
+not the first:
+要求 URL
+https://timer-neon-two.vercel.app/api/update_nickname
+查閱者原則
+strict-origin-when-cross-origin
+content-type
+application/json
+referer
+https://penter405.github.io/
+sec-ch-ua
+"Microsoft Edge";v="143", "Chromium";v="143", "Not A(Brand";v="24"
+sec-ch-ua-mobile
+?1
+sec-ch-ua-platform
+"Android"
+user-agent
+Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36 Edg/143.0.0.0
+
+要求 URL
+https://timer-neon-two.vercel.app/api/update_nickname
+要求方法
+OPTIONS
+狀態代碼
+404 Not Found
+遠端位址
+216.198.79.3:443
+查閱者原則
+strict-origin-when-cross-origin
+access-control-allow-credentials
+true
+access-control-allow-headers
+X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization
+access-control-allow-methods
+GET,OPTIONS,PATCH,DELETE,POST,PUT
+access-control-allow-origin
+*
+cache-control
+public, max-age=0, must-revalidate
+content-length
+79
+content-type
+text/plain; charset=utf-8
+date
+Mon, 15 Dec 2025 15:54:06 GMT
+server
+Vercel
+strict-transport-security
+max-age=63072000; includeSubDomains; preload
+x-vercel-error
+NOT_FOUND
+x-vercel-id
+hkg1::r6hj2-1765814046753-ade5ec086c0b
+:authority
+timer-neon-two.vercel.app
+:method
+OPTIONS
+:path
+/api/update_nickname
+:scheme
+https
+accept
+*/*
+accept-encoding
+gzip, deflate, br, zstd
+accept-language
+zh-TW,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6
+access-control-request-headers
+content-type
+access-control-request-method
+POST
+origin
+https://penter405.github.io
+priority
+u=1, i
+referer
+https://penter405.github.io/
+sec-fetch-dest
+empty
+sec-fetch-mode
+cors
+sec-fetch-site
+cross-site
+user-agent
+Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36 Edg/143.0.0.0
+
+
+console:
+content.js:534  Unable to check top-level optout: Failed to read a named property 'document' from 'Window': Blocked a frame with origin "https://accounts.google.com" from accessing a cross-origin frame.
+checkPageOptout @ content.js:534
+(匿名) @ content.js:551
+await in (匿名)
+(匿名) @ content.js:627
+(匿名) @ content.js:629
+favicon.ico:1   GET https://penter405.github.io/favicon.ico 404 (Not Found)
+content.js:534  Unable to check top-level optout: Failed to read a named property 'document' from 'Window': Blocked a frame with origin "https://accounts.google.com" from accessing a cross-origin frame.
+checkPageOptout @ content.js:534
+(匿名) @ content.js:551
+await in (匿名)
+(匿名) @ content.js:627
+(匿名) @ content.js:629
+connect.js?v=nocache:31 Signed in with Google
+timer/:1  Access to fetch at 'https://timer-neon-two.vercel.app/api/update_nickname' from origin 'https://penter405.github.io' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: It does not have HTTP ok status.
+connect.js?v=nocache:60   POST https://timer-neon-two.vercel.app/api/update_nickname net::ERR_FAILED
+syncNickname @ connect.js?v=nocache:60
+window.handleCredentialResponse @ connect.js?v=nocache:28
+Ot.Ea @ client:339
+Fs.Ea @ client:350
+Qt.c.port1.onmessage @ client:338
+connect.js?v=nocache:86  Auto-Registration Failed TypeError: Failed to fetch
+    at syncNickname (connect.js?v=nocache:60:27)
+    at window.handleCredentialResponse [as callback] (connect.js?v=nocache:28:13)
+    at Ot.Ea (client:339:428)
+    at Fs.Ea (client:350:45)
+    at Qt.c.port1.onmessage (client:338:135)
+syncNickname @ connect.js?v=nocache:86
+await in syncNickname
+window.handleCredentialResponse @ connect.js?v=nocache:28
+Ot.Ea @ client:339
+Fs.Ea @ client:350
+Qt.c.port1.onmessage @ client:338
+timer/:1  Access to fetch at 'https://timer-neon-two.vercel.app/api/save_time' from origin 'https://penter405.github.io' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: It does not have HTTP ok status.
+connect.js?v=nocache:194   POST https://timer-neon-two.vercel.app/api/save_time net::ERR_FAILED
+saveTimes @ connect.js?v=nocache:194
+addTime @ script.js?v=nocache:130
+stopTimer @ script.js?v=nocache:118
+beginHold @ script.js?v=nocache:177
+(匿名) @ script.js?v=nocache:248
+connect.js?v=nocache:209  Cloud Save Error: TypeError: Failed to fetch
+    at saveTimes (connect.js?v=nocache:194:9)
+    at addTime (script.js?v=nocache:130:5)
+    at stopTimer (script.js?v=nocache:118:9)
+    at beginHold (script.js?v=nocache:177:9)
+    at HTMLButtonElement.<anonymous> (script.js?v=nocache:248:5)
+(匿名) @ connect.js?v=nocache:209
+Promise.catch
+saveTimes @ connect.js?v=nocache:209
+addTime @ script.js?v=nocache:130
+stopTimer @ script.js?v=nocache:118
+beginHold @ script.js?v=nocache:177
+(匿名) @ script.js?v=nocache:248
+
