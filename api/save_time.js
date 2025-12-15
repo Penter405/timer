@@ -52,7 +52,7 @@ module.exports = async (req, res) => {
         const idToken = authHeader.split(' ')[1];
         const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
         const ticket = await client.verifyIdToken({ idToken, audience: process.env.GOOGLE_CLIENT_ID });
-        const userEmail = ticket.getPayload().email;
+        const userEmail = ticket.getPayload().email.toLowerCase();
 
         // Prepare Data
         const { time, scramble, date: rawDate } = req.body;
