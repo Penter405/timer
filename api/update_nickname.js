@@ -1,7 +1,8 @@
 const { google } = require('googleapis');
 const { OAuth2Client } = require('google-auth-library');
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// Moved client instantiation inside handler
 
 function getColumnLetter(colIndex) {
     let temp, letter = '';
@@ -45,7 +46,7 @@ module.exports = async (req, res) => {
 
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
 
     if (req.method === 'OPTIONS') { res.status(200).end(); return; }
     if (req.method !== 'POST') { return res.status(405).json({ error: 'Method Not Allowed' }); }
@@ -56,6 +57,7 @@ module.exports = async (req, res) => {
         // Nickname is now optional. If missing, we just register/fetch the ID.
 
         // 1. Verify Google Token
+        const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
         const ticket = await client.verifyIdToken({ idToken: token, audience: process.env.GOOGLE_CLIENT_ID });
         const userEmail = ticket.getPayload().email.toLowerCase();
 
