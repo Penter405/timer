@@ -93,3 +93,36 @@ def edit():
         
 # new hashtable , now all set up on sheet , mongo is futurn goal
  
+
+# ======================================================
+# ALL API OPTIONS CHECKLIST (History & Current)
+# ======================================================
+
+# Option 1: Direct Connection (Not Recommended)
+# Description: Web directly accesses Google Sheets.
+# Pros: Simple. Cons: Insecure (Keys exposed).
+def option_1_direct():
+    web.call(sheet, "IO")
+
+# Option 2: Cloudflare Workers (Middleware)
+# Description: Web calls Cloudflare, Cloudflare calls Sheet.
+# Pros: Fast. Cons: Setup complexity.
+def option_2_cloudflare():
+    web.call(cf, "IO")
+    cf.call(sheet, "IO")
+
+# Option 3: Vercel Serverless (Current Selection)
+# Description: Web calls Vercel, Vercel calls Sheet.
+# Pros: Secure, Free Tier, Easy Node.js integration.
+# Current Schema: Web -> Vercel (Auth/Hash) -> Sheet (UserMap/Counts/ScoreBoard)
+def option_3_vercel():
+    web.call(vercel, "IO")
+    vercel.call(sheet, "IO")
+
+# Option 4: MongoDB Hybrid (High Scale)
+# Description: Use Mongo for high-speed writes, sync to Sheet for backup/view.
+# Pros: Very Fast. Cons: Two databases to manage.
+def option_4_mongo_hybrid():
+    web.call(vercel, "IO")
+    vercel.call(mongo, "IO")
+    vercel.call(sheet, "IO") # Background Sync

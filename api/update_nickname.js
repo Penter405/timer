@@ -122,12 +122,14 @@ module.exports = async (req, res) => {
 
 
         if (!userID) {
-            // New User! Append to 'Total' sheet [Email, UniqueName]
+            // New User! Append to 'Total' sheet [Email] (Nickname Col B optional, but we can write it initially)
+            // User requested strict Lookup: ID -> Email -> Hash -> UserMap -> Nickname.
+            // So Total is primarily ID <-> Email.
             const totalAppend = await sheets.spreadsheets.values.append({
                 spreadsheetId,
-                range: 'Total!A:B', // Write Email and Nickname
+                range: 'Total!A:B',
                 valueInputOption: 'USER_ENTERED',
-                requestBody: { values: [[userEmail, newUniqueName]] }
+                requestBody: { values: [[userEmail, newUniqueName]] } // We still write unique name initially for debug/legacy, but won't update it.
             });
 
             const updatedRange = totalAppend.data.updates.updatedRange;
@@ -138,16 +140,9 @@ module.exports = async (req, res) => {
                 throw new Error("Failed to generate User ID from Total sheet");
             }
         } else {
-            // Existing User: Update their unique name in 'Total' sheet [Email, NewUniqueName]
-            // We know their ID, so we know the Row!
-            // Total Sheet ID = Row Number.
-            // Update Column B at Row {userID}
-            await sheets.spreadsheets.values.update({
-                spreadsheetId,
-                range: `Total!B${userID}`,
-                valueInputOption: 'USER_ENTERED',
-                requestBody: { values: [[newUniqueName]] }
-            });
+            // Existing User: DO NOT update 'Total' sheet.
+            // ID and Email are immutable in 'Total'.
+            // Nickname changes only affect 'UserMap'.
         }
 
         // --- Prepare Writes to UserMap and Counts ---
