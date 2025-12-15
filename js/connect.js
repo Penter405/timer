@@ -50,10 +50,42 @@ function parseJwt(token) {
 // Constants SHEET_ID and USER_MAP_URL are defined in scoreboard.js (loaded first)
 
 async function syncNickname(email) {
-    // Legacy Sync removed for Split Architecture (Privacy).
-    // We cannot look up Email -> Nickname on client side anymore.
-    // User must click "Update Nickname" to retrieve/set their identity.
-    console.log("Skipping legacy sync for privacy.");
+    if (!googleIdToken) return;
+
+    // Auto-Register / Fetch ID on Login
+    // We send NO nickname to trigger a "Get or Create ID" only.
+    const API_URL = 'https://timer-neon-two.vercel.app/api/update_nickname';
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                token: googleIdToken,
+                nickname: "" // Empty nickname = Registration Mode
+            })
+        });
+
+        if (!res.ok) throw new Error('Sync Failed');
+        const data = await res.json();
+
+        // If we got an ID, we are good. 
+        // If we got a uniqueName, update local storage.
+        if (data.uniqueName) {
+            localStorage.setItem('rubik_nickname', data.uniqueName);
+            const greetingEl = document.getElementById('nicknameGreeting');
+            if (greetingEl) greetingEl.textContent = `你好 ${data.uniqueName}`;
+        } else if (data.userId) {
+            // No nickname yet, but we have an ID! 
+            // Fallback greeting
+            const greetingEl = document.getElementById('nicknameGreeting');
+            if (greetingEl) greetingEl.textContent = `你好 #${data.userId}`;
+        }
+
+    } catch (e) {
+        console.error("Auto-Registration Failed", e);
+        // Silent fail is ok for background sync
+    }
 }
 
 // Auto-load nickname on startup
