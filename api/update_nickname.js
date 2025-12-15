@@ -57,7 +57,7 @@ module.exports = async (req, res) => {
 
         // 1. Verify Google Token
         const ticket = await client.verifyIdToken({ idToken: token, audience: process.env.GOOGLE_CLIENT_ID });
-        const userEmail = ticket.getPayload().email;
+        const userEmail = ticket.getPayload().email.toLowerCase();
 
         // 2. Auth with Sheets
         const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
