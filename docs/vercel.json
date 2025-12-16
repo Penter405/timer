@@ -1,4 +1,11 @@
 {
+    "version": 2,
+    "builds": [
+        {
+            "src": "api/*.js",
+            "use": "@vercel/node"
+        }
+    ],
     "headers": [
         {
             "source": "/api/(.*)",
@@ -20,6 +27,12 @@
                     "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization"
                 }
             ]
+        }
+    ],
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "/api/$1.js"
         }
     ]
 }
