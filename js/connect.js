@@ -204,7 +204,10 @@ function saveTimes(arr) {
                 nickname: nickname
             })
         })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                return res.json();
+            })
             .then(data => console.log('Saved to Sheet:', data))
             .catch(err => console.error('Cloud Save Error:', err));
     }
