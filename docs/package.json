@@ -5,8 +5,5 @@
   "dependencies": {
     "googleapis": "^126.0.1",
     "google-auth-library": "^9.0.0"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
   }
 }
