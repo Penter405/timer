@@ -32,7 +32,16 @@ function getBucketIndex(str, bucketSize) {
 
 module.exports = async (req, res) => {
     // === CORS headers（一定要在最前面）===
-    res.setHeader("Access-Control-Allow-Origin", "https://penter405.github.io");
+    const allowedOrigins = [
+        'https://penter405.github.io',
+        'http://127.0.0.1:5500',
+        'http://localhost:5500',
+        'http://localhost:3000'
+    ];
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    }
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version");
 
