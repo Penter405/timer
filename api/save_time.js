@@ -29,22 +29,20 @@ function getBucketIndex(str, bucketSize) {
 }
 
 module.exports = async (req, res) => {
-    // Dynamic CORS to support multiple origins (GitHub Pages + Localhost)
-    const allowedOrigins = ['https://penter405.github.io', 'http://localhost:8080', 'http://127.0.0.1:8080'];
-    const origin = req.headers.origin;
+    // === CORS headers（一定要在最前面）===
+    res.setHeader("Access-Control-Allow-Origin", "https://penter405.github.io");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version");
 
-    if (allowedOrigins.includes(origin)) {
-        res.setHeader('Access-Control-Allow-Origin', origin);
-    } else {
-        res.setHeader('Access-Control-Allow-Origin', 'https://penter405.github.io');
+    // === 回 preflight ===
+    if (req.method === "OPTIONS") {
+        return res.status(200).end();
     }
 
-    res.setHeader('Access-Control-Allow-Credentials', true);
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
-
-    if (req.method === 'OPTIONS') { res.status(200).end(); return; }
-    if (req.method !== 'POST') { return res.status(405).json({ error: 'Method Not Allowed' }); }
+    // === 真正的 API ===
+    if (req.method !== "POST") {
+        return res.status(405).json({ error: "Method not allowed" });
+    }
 
     try {
         const authHeader = req.headers.authorization;
