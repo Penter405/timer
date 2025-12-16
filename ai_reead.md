@@ -424,3 +424,27 @@ function doPost(e) {
 
 ```
 
+```
+export default async function handler(req, res) {
+  // === CORS headers（一定要在最前面）===
+  res.setHeader("Access-Control-Allow-Origin", "https://penter405.github.io");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  // === 回 preflight ===
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  // === 真正的 API ===
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  // 你的原本邏輯
+  const { nickname } = req.body;
+
+  return res.status(200).json({ status: "ok" });
+}
+
+```
