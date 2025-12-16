@@ -156,7 +156,7 @@ module.exports = async (req, res) => {
                 spreadsheetId,
                 range: 'Total!A:B',
                 valueInputOption: 'USER_ENTERED',
-                requestBody: { values: [[userEmail, newUniqueName]] } // We still write unique name initially for debug/legacy, but won't update it.
+                requestBody: { values: [[userEmail]] } // Schema Compliance: Total sheet ONLY stores Email (Col A)
             });
 
             const updatedRange = totalAppend.data.updates.updatedRange;
