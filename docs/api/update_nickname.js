@@ -1,79 +1,140 @@
 const getSheetsClient = require('./sheetsClient');
+const {
+    handleCORS,
+    verifyGoogleToken,
+    sendError,
+    sendSuccess,
+    getColumnLetter,
+    getBucketIndex,
+    getBucketRange
+} = require('./apiUtils');
 
-function getColumnLetter(colIndex) {
-    let temp, letter = '';
-    while (colIndex >= 0) {
-        temp = colIndex % 26;
-        letter = String.fromCharCode(temp + 65) + letter;
-        colIndex = Math.floor(colIndex / 26) - 1;
-    }
-    return letter;
-}
-
-function getBucketIndex(str, bucketSize) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) - hash) + str.charCodeAt(i);
-        hash |= 0;
-    }
-    return Math.abs(hash) % bucketSize;
-}
-
-function getBucketRange(sheetName, bucketIndex, cols) {
-    const startCol = bucketIndex * cols;
-    const endCol = startCol + cols - 1;
-    return `${sheetName}!${getColumnLetter(startCol)}:${getColumnLetter(endCol)}`;
-}
-
+/**
+ * Update Nickname API
+ * Register new users and update nicknames using Hash Table
+ * Architecture: Web → Vercel → Sheet (option_3_vercel)
+ * 
+ * New User Flow:
+ * 1. Hash email to find UserMap bucket
+ * 2. Check if email exists in bucket
+ * 3. If not found → Register in Total sheet (get UserID)
+ * 4. Save [Email, UserID, Nickname] to UserMap
+ * 
+ * Request Body:
+ * - token: Google ID Token (required)
+ * - nickname: Nickname to set (optional, empty = registration only)
+ */
 module.exports = async (req, res) => {
+    // Handle CORS
+    if (handleCORS(req, res)) return;
+
     const sheets = getSheetsClient();
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
     try {
-        const { email, nickname } = req.body;
-        if (!email) return res.status(400).json({ error: 'Missing email' });
+        // === 1. Extract and Validate Input ===
+        const { token, nickname } = req.body;
 
-        // === 取得 UserMap bucket ===
-        const meta = await sheets.spreadsheets.get({ spreadsheetId, fields: 'sheets.properties(title,gridProperties.columnCount)' });
+        // Verify JWT and extract email
+        const email = verifyGoogleToken(token);
+        if (!email) {
+            return sendError(res, 401, 'Invalid or expired token', '請重新登入');
+        }
+
+        console.log(`[UPDATE_NICKNAME] Processing request for email: ${email}`);
+
+        // === 2. Get UserMap Metadata and Calculate Bucket ===
+        const meta = await sheets.spreadsheets.get({
+            spreadsheetId,
+            fields: 'sheets.properties(title,gridProperties.columnCount)'
+        });
+
         const userMapProps = meta.data.sheets.find(s => s.properties.title === 'UserMap');
+        if (!userMapProps) {
+            throw new Error('UserMap sheet not found');
+        }
+
         const userCols = userMapProps.properties.gridProperties.columnCount || 26;
-        const userBucketSize = Math.floor(userCols / 3);
+        const userBucketSize = Math.floor(userCols / 3); // Each bucket = 3 columns
         const userBucket = getBucketIndex(email, userBucketSize);
         const userRange = getBucketRange('UserMap', userBucket, 3);
 
-        const userRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: userRange });
+        console.log(`[UPDATE_NICKNAME] Bucket: ${userBucket}, Range: ${userRange}`);
+
+        // === 3. Check if User Exists in UserMap ===
+        const userRes = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: userRange
+        });
         const rows = userRes.data.values || [];
 
-        let userRowIdx = rows.findIndex(r => r[0] === email);
-        let userID = userRowIdx !== -1 ? rows[userRowIdx][1] : null;
+        let userRowIdx = rows.findIndex(r => r && r[0] === email);
+        let userID = null;
+        let isNewUser = false;
 
-        if (!userID) {
-            // 新用戶，新增到 Total sheet
+        // === 4. Handle New User Registration ===
+        if (userRowIdx === -1) {
+            isNewUser = true;
+            console.log(`[UPDATE_NICKNAME] New user detected: ${email}`);
+
+            // Register in Total sheet to get unique ID
             const totalAppend = await sheets.spreadsheets.values.append({
                 spreadsheetId,
                 range: 'Total!A:A',
                 valueInputOption: 'USER_ENTERED',
                 requestBody: { values: [[email]] }
             });
+
+            // Extract row number as UserID
             const match = totalAppend.data.updates.updatedRange.match(/!A(\d+):/);
             userID = match ? match[1] : null;
+
+            if (!userID) {
+                throw new Error('Failed to register new user in Total sheet');
+            }
+
+            console.log(`[UPDATE_NICKNAME] Registered new user with ID: ${userID}`);
+
+            // Update userRowIdx for new row insertion
+            userRowIdx = rows.length; // Append to end
+        } else {
+            // Existing user - retrieve ID
+            userID = rows[userRowIdx][1];
+            console.log(`[UPDATE_NICKNAME] Existing user found with ID: ${userID}`);
         }
 
-        // 計算唯一暱稱
-        const uniqueName = nickname ? `${nickname}#${userID}` : '';
+        // === 5. Generate Unique Nickname ===
+        // If nickname is provided, append #ID
+        // If nickname is empty, leave uniqueName as empty (for future updates)
+        const uniqueName = nickname ? `${nickname.trim()}#${userID}` : '';
 
-        // 更新 UserMap
-        const updateRange = userRowIdx !== -1 ? `${userRange.split(':')[0]}:${getColumnLetter(userBucket * 3 + 2)}${userRowIdx + 1}` : `${getBucketRange('UserMap', userBucket, 3)}${rows.length + 1}`;
+        console.log(`[UPDATE_NICKNAME] Unique name: ${uniqueName || '(empty)'}`);
+
+        // === 6. Update UserMap ===
+        // Calculate exact cell range for update
+        const bucketStartCol = userBucket * 3;
+        const updateRange = `UserMap!${getColumnLetter(bucketStartCol)}${userRowIdx + 1}:${getColumnLetter(bucketStartCol + 2)}${userRowIdx + 1}`;
+
         await sheets.spreadsheets.values.update({
             spreadsheetId,
             range: updateRange,
             valueInputOption: 'USER_ENTERED',
-            requestBody: { values: [[email, userID, uniqueName]] }
+            requestBody: {
+                values: [[email, userID, uniqueName]]
+            }
         });
 
-        res.status(200).json({ uniqueName, userID });
+        console.log(`[UPDATE_NICKNAME] UserMap updated at ${updateRange}`);
+
+        // === 7. Return Response ===
+        sendSuccess(res, {
+            uniqueName: uniqueName || null,
+            userID: userID,
+            isNewUser: isNewUser
+        }, isNewUser ? '新用戶註冊成功' : '資料更新成功');
+
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
+        console.error('[UPDATE_NICKNAME] Error:', err);
+        sendError(res, 500, err.message, '伺服器錯誤，請稍後再試');
     }
 };

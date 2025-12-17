@@ -60,33 +60,44 @@ async function syncNickname(email) {
         const res = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // Include cookies if needed
             body: JSON.stringify({
                 token: googleIdToken,
-                nickname: "" // Empty nickname = Registration Mode
+                nickname: "" // Empty nickname = Registration/Sync Mode
             })
         });
 
         if (!res.ok) throw new Error('Sync Failed');
         const data = await res.json();
 
-        // If we got an ID, we are good. 
-        // If we got a uniqueName, update local storage.
+        console.log('[SYNC] Server response:', data);
+
+        const greetingEl = document.getElementById('nicknameGreeting');
+
+        // Handle new user welcome
+        if (data.isNewUser) {
+            console.log('🎉 新用戶註冊！User ID:', data.userID);
+        }
+
+        // Update greeting based on response
         if (data.uniqueName) {
+            // User has a nickname registered
             localStorage.setItem('rubik_nickname', data.uniqueName);
-            const greetingEl = document.getElementById('nicknameGreeting');
             if (greetingEl) greetingEl.textContent = `你好 ${data.uniqueName}`;
-        } else if (data.userId) {
-            // No nickname yet, but we have an ID! 
-            // Fallback greeting
-            const greetingEl = document.getElementById('nicknameGreeting');
-            if (greetingEl) greetingEl.textContent = `你好 #${data.userId}`;
+            console.log('[SYNC] Nickname loaded:', data.uniqueName);
+        } else if (data.userID) {
+            // No nickname yet, but we have an ID (new user or no nickname set)
+            if (greetingEl) greetingEl.textContent = `你好 #${data.userID}`;
+            console.log('[SYNC] User ID registered:', data.userID);
         }
 
     } catch (e) {
-        console.error("Auto-Registration Failed", e);
+        console.error('[SYNC] Auto-Registration Failed:', e);
         // Silent fail is ok for background sync
+        // User can still use the app, just won't have cloud sync
     }
 }
+
 
 // Auto-load nickname on startup
 // Auto-load nickname on startup
@@ -121,11 +132,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const API_URL = 'https://timer-neon-two.vercel.app/api/update_nickname';
             // Disable button
             updateBtn.disabled = true;
-            updateBtn.textContent = '...';
+            updateBtn.textContent = '上傳中...';
 
             fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({
                     token: googleIdToken,
                     nickname: inputName
@@ -136,17 +148,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     return res.json();
                 })
                 .then(data => {
+                    console.log('[UPDATE] Server response:', data);
+
                     const uniqueName = data.uniqueName;
                     // Update Greeting, NOT input value
                     if (greetingEl) greetingEl.textContent = `你好 ${uniqueName}`;
 
                     // Save to local storage
                     localStorage.setItem('rubik_nickname', uniqueName);
-                    alert(`上傳成功！您的 ID 是：${uniqueName}`);
+
+                    // Clear input field for next update
+                    if (nicknameEl) nicknameEl.value = '';
+
+                    alert(`✅ 上傳成功！\n您的 ID 是：${uniqueName}`);
                 })
                 .catch(err => {
-                    console.error(err);
-                    alert('更新失敗，請稍後再試。');
+                    console.error('[UPDATE] Error:', err);
+                    alert('❌ 更新失敗，請稍後再試。');
                 })
                 .finally(() => {
                     updateBtn.disabled = false;
