@@ -50,7 +50,7 @@ web=data[0]
 cf=data[1]
 vercel=data[2]
 mongo=data[3]#mongo save hashtable + count  always, never move to sheet. the scoreboard include email and the others, we will put email to list1 , the others to list2 , smae index to list1 and list2 means correct. we will save email always on mongo, if mongo full or we just want, we cant put list2 to sheet
-sheet=data[4]
+sheet=data[4]#with google cloud bot
 #api call count 
 def cheak_api_use():
     for rs in data:
