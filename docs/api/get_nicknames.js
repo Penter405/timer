@@ -5,7 +5,7 @@ const {
     sendSuccess,
     getColumnLetter,
     getBucketIndex
-} = require('./apiUtils');
+} = require('../lib/apiUtils');
 
 /**
  * Get Nicknames API
@@ -37,7 +37,7 @@ module.exports = async (req, res) => {
 
         // === 2. Batch Read from Total Sheet (UserID → Email) ===
         // Total sheet stores emails at row number = UserID
-        const totalRanges = ids.map(id => `Total!A${id}`);
+        const totalRanges = ids.map(id => `Total!A${id} `);
 
         const totalRes = await sheets.spreadsheets.values.batchGet({
             spreadsheetId,
@@ -85,7 +85,7 @@ module.exports = async (req, res) => {
         const getBucketRange = (bucketIdx) => {
             const startCol = bucketIdx * 3;
             const endCol = startCol + 2;
-            return `UserMap!${getColumnLetter(startCol)}:${getColumnLetter(endCol)}`;
+            return `UserMap!${getColumnLetter(startCol)}:${getColumnLetter(endCol)} `;
         };
 
         const bucketRanges = Object.keys(bucketToEmails).map(b => getBucketRange(parseInt(b)));
