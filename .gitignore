@@ -6,3 +6,5 @@ __pycache__/
 node_modules/
 *.log
 
+# Contains API secrets - do not commit
+documentation/CountsGAS.gs
