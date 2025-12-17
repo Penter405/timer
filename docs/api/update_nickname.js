@@ -135,9 +135,43 @@ module.exports = async (req, res) => {
         }
 
         // === 5. Update UserMap with uniqueName ===
-        // (UserMap stores: Email | UserID | UniqueName)
-        // TODO: Implement UserMap hash table update if needed
-        // For now, we skip UserMap update since it's not strictly required
+        // UserMap stores: Email | UserID | UniqueName
+        if (uniqueName) {
+            try {
+                // Check if email already exists in UserMap
+                const userMapRes = await sheets.spreadsheets.values.get({
+                    spreadsheetId,
+                    range: 'UserMap!A:A'
+                });
+
+                const userMapRows = userMapRes.data.values || [];
+                const existingIndex = userMapRows.findIndex(row => row[0] === email);
+
+                if (existingIndex !== -1) {
+                    // Update existing row (row number = index + 1)
+                    const rowNum = existingIndex + 1;
+                    await sheets.spreadsheets.values.update({
+                        spreadsheetId,
+                        range: `UserMap!A${rowNum}:C${rowNum}`,
+                        valueInputOption: 'USER_ENTERED',
+                        requestBody: { values: [[email, userID, uniqueName]] }
+                    });
+                    console.log(`[UPDATE_NICKNAME] Updated UserMap row ${rowNum}`);
+                } else {
+                    // Append new row
+                    await sheets.spreadsheets.values.append({
+                        spreadsheetId,
+                        range: 'UserMap!A:C',
+                        valueInputOption: 'USER_ENTERED',
+                        requestBody: { values: [[email, userID, uniqueName]] }
+                    });
+                    console.log(`[UPDATE_NICKNAME] Appended to UserMap: ${email}, ${userID}, ${uniqueName}`);
+                }
+            } catch (userMapError) {
+                console.error('[UPDATE_NICKNAME] UserMap update failed:', userMapError);
+                // Non-fatal error, continue with response
+            }
+        }
 
         // === 6. Return Response ===
         sendSuccess(res, {
