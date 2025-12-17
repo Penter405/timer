@@ -30,7 +30,15 @@ module.exports = async (req, res) => {
 
     try {
         // === 1. Extract and Validate Input ===
-        const { token, userID, time, scramble, date } = req.body;
+        const { userID, time, scramble, date } = req.body;
+
+        // Extract token from Authorization header
+        const authHeader = req.headers.authorization;
+        let token = null;
+
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.substring(7); // Remove 'Bearer ' prefix
+        }
 
         // Verify JWT token
         const email = verifyGoogleToken(token);

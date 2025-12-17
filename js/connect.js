@@ -79,6 +79,11 @@ async function syncNickname(email) {
             console.log('🎉 新用戶註冊！User ID:', data.userID);
         }
 
+        // Store userID in localStorage
+        if (data.userID) {
+            localStorage.setItem('rubik_user_id', data.userID);
+        }
+
         // Update greeting based on response
         if (data.uniqueName) {
             // User has a nickname registered
@@ -209,6 +214,13 @@ function saveTimes(arr) {
             localStorage.setItem('rubik_nickname', nickname);
         }
 
+        // Get userID from localStorage
+        const userID = localStorage.getItem('rubik_user_id');
+        if (!userID) {
+            console.warn('[SAVE_TIME] No userID found, skipping cloud save');
+            return; // Skip if no userID
+        }
+
         fetch(API_URL, {
             method: 'POST',
             headers: {
@@ -216,10 +228,10 @@ function saveTimes(arr) {
                 'Authorization': `Bearer ${googleIdToken}`
             },
             body: JSON.stringify({
+                userID: userID,
                 time: latestInfo.ms, // raw ms
                 scramble: latestInfo.scramble,
-                date: latestInfo.at,
-                nickname: nickname
+                date: latestInfo.at
             })
         })
             .then(res => {
