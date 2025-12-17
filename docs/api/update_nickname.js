@@ -162,6 +162,36 @@ module.exports = async (req, res) => {
                 console.error(`[UPDATE_NICKNAME] GAS call failed:`, gasError);
                 return sendError(res, 500, 'Name allocation failed', 'name_number 分配失敗');
             }
+        } else {
+            // No nickname provided - sync mode: read existing uniqueName from UserMap
+            console.log(`[UPDATE_NICKNAME] Sync mode: reading existing uniqueName from UserMap`);
+
+            try {
+                const teamIndex = getUserMapTeamIndex(email);
+                const firstCol = teamIndex * USERMAP_COLS_PER_TEAM + 1;
+                const lastCol = firstCol + USERMAP_COLS_PER_TEAM - 1;
+                const colToLetter = (col) => String.fromCharCode(64 + col);
+                const firstColLetter = colToLetter(firstCol);
+                const lastColLetter = colToLetter(lastCol);
+
+                const userMapRes = await sheets.spreadsheets.values.get({
+                    spreadsheetId,
+                    range: `UserMap!${firstColLetter}:${lastColLetter}`
+                });
+
+                const teamData = userMapRes.data.values || [];
+
+                for (let i = 0; i < teamData.length; i++) {
+                    if (teamData[i] && teamData[i][0] === email) {
+                        uniqueName = teamData[i][2] || ''; // Column 3 is UniqueName
+                        console.log(`[UPDATE_NICKNAME] Found existing uniqueName: ${uniqueName || '(empty)'}`);
+                        break;
+                    }
+                }
+            } catch (readError) {
+                console.error('[UPDATE_NICKNAME] Failed to read UserMap:', readError);
+                // Continue without uniqueName
+            }
         }
 
         // === 5. Update UserMap with uniqueName (Hash-based) ===
