@@ -70,11 +70,8 @@ function getNextNameNumber(username) {
   const lock = LockService.getScriptLock();
   
   try {
-    // Acquire lock with timeout
-    const hasLock = lock.waitLock(LOCK_TIMEOUT_MS);
-    if (!hasLock) {
-      throw new Error('LOCK_TIMEOUT');
-    }
+    // Acquire lock with timeout (throws exception if lock cannot be acquired)
+    lock.waitLock(LOCK_TIMEOUT_MS);
     
     // === CRITICAL SECTION START ===
     
@@ -90,9 +87,9 @@ function getNextNameNumber(username) {
     
     Logger.log(`[GAS] Username: ${username}, TeamIndex: ${teamIndex}, Columns: ${firstColumn}, ${secondColumn}`);
     
-    // 2. Get all data from this team's two columns (starting from row 2)
+    // 2. Get all data from this team's two columns (starting from row 1, no header)
     const lastRow = sheet.getLastRow();
-    const dataRange = sheet.getRange(2, firstColumn, Math.max(lastRow - 1, 1), 2);
+    const dataRange = sheet.getRange(1, firstColumn, Math.max(lastRow, 1), 2);
     const data = dataRange.getValues();
     
     // 3. Search for username in first column
@@ -103,7 +100,7 @@ function getNextNameNumber(username) {
       if (data[i][0] === username) {
         foundRowIndex = i;
         currentCount = parseInt(data[i][1]) || 0;
-        Logger.log(`[GAS] Found username at row ${i + 2}, current count: ${currentCount}`);
+        Logger.log(`[GAS] Found username at row ${i + 1}, current count: ${currentCount}`);
         break;
       }
     }
@@ -113,7 +110,7 @@ function getNextNameNumber(username) {
     // 4. Write back to sheet
     if (foundRowIndex !== -1) {
       // Update existing row
-      const actualRow = foundRowIndex + 2; // +2 because row 1 is header, and we started from row 2
+      const actualRow = foundRowIndex + 1; // +1 because array is 0-indexed, rows are 1-indexed
       sheet.getRange(actualRow, secondColumn).setValue(newCount);
       Logger.log(`[GAS] Updated count at row ${actualRow} to ${newCount}`);
     } else {
@@ -128,7 +125,7 @@ function getNextNameNumber(username) {
       
       let targetRow;
       if (emptyRowIndex !== -1) {
-        targetRow = emptyRowIndex + 2;
+        targetRow = emptyRowIndex + 1;
       } else {
         // Append new row
         targetRow = lastRow + 1;
