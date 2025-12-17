@@ -70,10 +70,9 @@ function initTimezoneSelector() {
     // Set saved value
     selector.value = getSelectedTimezone();
 
-    // Listen for changes
+    // Listen for changes (no auto-fetch, user must click Submit)
     selector.addEventListener('change', (e) => {
         localStorage.setItem('scoreboard_timezone', e.target.value);
-        fetchLeaderboard(); // Refresh with new timezone
     });
 }
 

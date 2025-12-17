@@ -40,9 +40,9 @@ function showPage(pageName) {
 
     currentPage = pageName;
 
-    // Load data if needed
-    if (pageName === 'scoreboard' && typeof fetchLeaderboard === 'function') {
-        fetchLeaderboard();
+    // Initialize scoreboard controls when navigating to scoreboard page (no auto-fetch)
+    if (pageName === 'scoreboard' && typeof initScoreboardControls === 'function') {
+        initScoreboardControls();
     }
 }
 
