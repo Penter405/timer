@@ -51,18 +51,24 @@ function handleCORS(req, res) {
  */
 function parseJwt(token) {
     try {
-        const base64Url = token.split('.')[1];
+        if (!token || typeof token !== 'string') {
+            return null;
+        }
+
+        const parts = token.split('.');
+        if (parts.length !== 3) {
+            return null;
+        }
+
+        const base64Url = parts[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(
-            Buffer.from(base64, 'base64')
-                .toString('utf-8')
-                .split('')
-                .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                .join('')
-        );
+
+        // Use Buffer.from for Node.js compatibility (works in Vercel)
+        const jsonPayload = Buffer.from(base64, 'base64').toString('utf-8');
+
         return JSON.parse(jsonPayload);
     } catch (e) {
-        console.error('[JWT] Parse Error:', e);
+        console.error('[JWT] Parse Error:', e.message);
         return null;
     }
 }
