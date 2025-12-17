@@ -81,7 +81,21 @@
         <div id="scoreboardPage" class="page">
             <div class="page-content">
                 <h2>🏆 記分板</h2>
-                <p style="color:var(--muted)">公開排行榜（從 Google Sheets 讀取）</p>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <p style="color:var(--muted); margin:0;">公開排行榜（從 Google Sheets 讀取）</p>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label for="timezoneSelect" style="color:var(--muted); font-size:0.9em;">時區：</label>
+                        <select id="timezoneSelect" style="padding:4px 8px; border-radius:4px; background:var(--card-bg); color:var(--text); border:1px solid rgba(255,255,255,0.1);">
+                            <option value="Europe/London">🇬🇧 英國 (GMT/BST)</option>
+                            <option value="Asia/Taipei">🇹🇼 台灣 (UTC+8)</option>
+                            <option value="Asia/Tokyo">🇯🇵 日本 (UTC+9)</option>
+                            <option value="Asia/Shanghai">🇨🇳 中國 (UTC+8)</option>
+                            <option value="America/New_York">🇺🇸 美東 (EST/EDT)</option>
+                            <option value="America/Los_Angeles">🇺🇸 美西 (PST/PDT)</option>
+                            <option value="UTC">🌍 UTC</option>
+                        </select>
+                    </div>
+                </div>
                 <div id="leaderboard" class="card">
                     <p>記分板功能開發中...</p>
                 </div>
