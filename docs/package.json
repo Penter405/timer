@@ -4,6 +4,7 @@
   "description": "Rubik's Cube Timer & Scrambler with Hybrid Backend",
   "dependencies": {
     "googleapis": "^126.0.1",
-    "google-auth-library": "^9.0.0"
+    "google-auth-library": "^9.0.0",
+    "node-fetch": "^2.7.0"
   }
 }
