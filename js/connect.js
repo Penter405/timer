@@ -92,7 +92,7 @@ async function syncNickname(email) {
             console.log('[SYNC] Nickname loaded:', data.uniqueName);
         } else if (data.userID) {
             // No nickname yet, but we have an ID (new user or no nickname set)
-            if (greetingEl) greetingEl.textContent = `你好 #${data.userID}`;
+            if (greetingEl) greetingEl.textContent = `你好 ID:${data.userID}`;
             console.log('[SYNC] User ID registered:', data.userID);
         }
 
