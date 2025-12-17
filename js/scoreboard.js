@@ -155,7 +155,7 @@ async function fetchLeaderboard() {
         // 4. Merge Data
         const times = rawData.map(item => {
             let displayName = nicknameMap[item.userId];
-            if (!displayName) displayName = `User#${item.userId}`; // Fallback
+            if (!displayName) displayName = `ID:${item.userId}`; // Fallback for unregistered users
 
             return {
                 ...item,
