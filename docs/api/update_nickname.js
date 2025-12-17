@@ -85,11 +85,17 @@ module.exports = async (req, res) => {
                 requestBody: { values: [[email]] }
             });
 
+            // Log the actual response for debugging
+            console.log(`[UPDATE_NICKNAME] Total append response:`, JSON.stringify(totalAppend.data.updates, null, 2));
+
             // Extract row number as UserID
-            const match = totalAppend.data.updates.updatedRange.match(/!A(\d+):/);
+            // Format can be "Total!A5" or "Total!A5:A5"
+            const updatedRange = totalAppend.data.updates.updatedRange;
+            const match = updatedRange.match(/!A(\d+)/);
             userID = match ? match[1] : null;
 
             if (!userID) {
+                console.error(`[UPDATE_NICKNAME] Failed to extract UserID. UpdatedRange: ${updatedRange}`);
                 throw new Error('Failed to register new user in Total sheet');
             }
 
