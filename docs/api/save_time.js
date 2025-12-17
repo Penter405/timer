@@ -13,62 +13,58 @@ const {
 
 // Must match update_nickname.js settings
 const USERMAP_TEAM_COUNT = 8;
+const MAX_ROWS_PER_PERIOD = 1000;
 
 /**
- * Save Time API (SECURE)
- * Saves user's solve time to ScoreBoard sheet
- * Architecture: Web → Vercel → Sheet (option_3_vercel)
+ * Period column configuration
+ * Each period uses 6 columns: UserID, Time, Scramble, Date, Time, Status
+ */
+const PERIOD_CONFIG = {
+    all: { startCol: 0, name: '歷史' },   // A-F (0-5)
+    year: { startCol: 6, name: '本年' },   // G-L (6-11)
+    month: { startCol: 12, name: '本月' },   // M-R (12-17)
+    week: { startCol: 18, name: '本周' },   // S-X (18-23)
+    today: { startCol: 24, name: '本日' }    // Y-AD (24-29)
+};
+
+/**
+ * Save Time API (SECURE + Multi-Period)
+ * Saves user's solve time to ScoreBoard and ScoreBoardUnique sheets
  * 
- * SECURITY: UserID is looked up from UserMap using email hash, NOT from frontend
- * 
- * Request Body:
- * - time: Solve time in milliseconds (required)
- * - scramble: Scramble sequence (optional)
- * - date: Timestamp (optional, defaults to now)
- * 
- * Authorization Header:
- * - Bearer {Google ID Token}
+ * SECURITY: UserID is looked up from UserMap using email hash
+ * MULTI-PERIOD: Writes to 5 time periods (歷史/本年/本月/本周/本日)
+ * 1000 ROW LIMIT: Checks if score can make the ranking before inserting
  */
 module.exports = async (req, res) => {
-    // Handle CORS
     if (handleCORS(req, res)) return;
 
     const sheets = getSheetsClient();
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
     try {
-        // === 1. Extract and Validate Token ===
+        // === 1. Authenticate User ===
         const authHeader = req.headers.authorization;
-        let token = null;
+        let token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
 
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            token = authHeader.substring(7);
-        }
-
-        // Verify JWT token and extract email (SECURE: email comes from Google)
         const email = verifyGoogleToken(token);
         if (!email) {
             return sendError(res, 401, 'Invalid or expired token', '請重新登入');
         }
 
-        console.log(`[SAVE_TIME] Authenticated user: ${email}`);
+        console.log(`[SAVE_TIME] Authenticated: ${email}`);
 
-        // === 2. Validate Time Input ===
+        // === 2. Validate Input ===
         const { time, scramble, date } = req.body;
-
         if (!time || isNaN(parseFloat(time))) {
             return sendError(res, 400, 'Missing or invalid time', '缺少或無效的時間數據');
         }
 
-        // === 3. Lookup UserID from UserMap (SECURE) ===
-        // Hash email to find bucket
-        const teamIndex = getBucketIndex(email, USERMAP_TEAM_COUNT);
-        const firstCol = teamIndex * 3 + 1; // 1-indexed
-        const lastCol = firstCol + 2;
-        const firstColLetter = getColumnLetter(firstCol - 1); // getColumnLetter is 0-indexed
-        const lastColLetter = getColumnLetter(lastCol - 1);
+        const timeInSeconds = parseFloat((parseFloat(time) / 1000).toFixed(3));
 
-        console.log(`[SAVE_TIME] Looking up email ${email} in UserMap bucket ${teamIndex} (cols ${firstColLetter}-${lastColLetter})`);
+        // === 3. Lookup UserID from UserMap ===
+        const teamIndex = getBucketIndex(email, USERMAP_TEAM_COUNT);
+        const firstColLetter = getColumnLetter(teamIndex * 3);
+        const lastColLetter = getColumnLetter(teamIndex * 3 + 2);
 
         const userMapRes = await sheets.spreadsheets.values.get({
             spreadsheetId,
@@ -77,23 +73,18 @@ module.exports = async (req, res) => {
 
         const teamData = userMapRes.data.values || [];
         let userID = null;
-        let foundRowIndex = -1;
 
-        // Search for email in bucket
         for (let i = 0; i < teamData.length; i++) {
-            if (teamData[i] && teamData[i][0] === email) {
-                userID = teamData[i][1]; // Column 2 is UserID
-                foundRowIndex = i;
-                console.log(`[SAVE_TIME] Found user in UserMap: email=${email}, userID=${userID}`);
+            if (teamData[i]?.[0] === email) {
+                userID = teamData[i][1];
                 break;
             }
         }
 
         // === 4. Auto-Register if Not Found ===
         if (!userID) {
-            console.log(`[SAVE_TIME] User not found in UserMap, auto-registering...`);
+            console.log(`[SAVE_TIME] Auto-registering user...`);
 
-            // 4a. Register in Total sheet (get new UserID)
             const totalAppend = await sheets.spreadsheets.values.append({
                 spreadsheetId,
                 range: 'Total!A:A',
@@ -101,87 +92,139 @@ module.exports = async (req, res) => {
                 requestBody: { values: [[email]] }
             });
 
-            // Extract UserID from row number
-            const updatedRange = totalAppend.data.updates.updatedRange;
-            const match = updatedRange.match(/!A(\d+)/);
-            userID = match ? match[1] : null;
+            const match = totalAppend.data.updates.updatedRange.match(/!A(\d+)/);
+            userID = match?.[1];
 
             if (!userID) {
-                console.error(`[SAVE_TIME] Failed to extract UserID from Total. Range: ${updatedRange}`);
                 return sendError(res, 500, 'Failed to register user', '用戶註冊失敗');
             }
 
-            console.log(`[SAVE_TIME] Registered in Total with UserID: ${userID}`);
-
-            // 4b. Also write to UserMap (email, userID, empty nickname)
-            // Find first empty row or append
-            let targetRow;
-            let emptyRowIndex = -1;
-            for (let i = 0; i < teamData.length; i++) {
-                if (!teamData[i] || !teamData[i][0]) {
-                    emptyRowIndex = i;
-                    break;
-                }
-            }
-
-            if (emptyRowIndex !== -1) {
-                targetRow = emptyRowIndex + 1;
-            } else {
-                targetRow = teamData.length + 1;
-            }
-
+            const targetRow = teamData.length + 1;
             await sheets.spreadsheets.values.update({
                 spreadsheetId,
                 range: `UserMap!${firstColLetter}${targetRow}:${lastColLetter}${targetRow}`,
                 valueInputOption: 'USER_ENTERED',
-                requestBody: { values: [[email, userID, '']] } // Empty nickname
+                requestBody: { values: [[email, userID, '']] }
             });
 
-            console.log(`[SAVE_TIME] Wrote to UserMap bucket ${teamIndex} row ${targetRow}: [${email}, ${userID}, '']`);
+            console.log(`[SAVE_TIME] Registered: userID=${userID}`);
         }
 
-        // === 5. Format Data for Google Sheets ===
+        // === 5. Prepare Row Data ===
         const timestamp = date ? new Date(date) : new Date();
         const formattedDate = formatDate(timestamp);
         const formattedTime = formatTime(timestamp);
 
-        // Convert milliseconds to seconds with 3 decimal places
-        const timeInSeconds = (parseFloat(time) / 1000).toFixed(3);
-
-        // Prepare row data
-        // Schema: [UserID, Time(seconds), Scramble, Date, Time, Status]
         const rowData = [
-            formatSheetValue(userID),           // SECURE: UserID from backend lookup
-            formatSheetValue(timeInSeconds),
+            formatSheetValue(userID),
+            formatSheetValue(timeInSeconds.toFixed(3)),
             formatSheetValue(scramble || ''),
             formatSheetValue(formattedDate),
             formatSheetValue(formattedTime),
             formatSheetValue('Verified')
         ];
 
-        console.log(`[SAVE_TIME] Row data: `, rowData);
+        // === 6. Write to All 5 Periods in Both Sheets ===
+        const periods = Object.keys(PERIOD_CONFIG);
+        const results = { ScoreBoard: {}, ScoreBoardUnique: {} };
 
-        // === 6. Append to ScoreBoard Sheet ===
-        const appendResponse = await sheets.spreadsheets.values.append({
-            spreadsheetId,
-            range: 'ScoreBoard!A:F',
-            valueInputOption: 'USER_ENTERED',
-            requestBody: {
-                values: [rowData]
+        for (const sheetName of ['ScoreBoard', 'ScoreBoardUnique']) {
+            for (const period of periods) {
+                const config = PERIOD_CONFIG[period];
+                const startColLetter = getColumnLetter(config.startCol);
+                const endColLetter = getColumnLetter(config.startCol + 5);
+                const range = `${sheetName}!${startColLetter}:${endColLetter}`;
+
+                try {
+                    // Read existing data
+                    const existingRes = await sheets.spreadsheets.values.get({
+                        spreadsheetId,
+                        range: range
+                    });
+
+                    const existingData = existingRes.data.values || [];
+
+                    // Parse times (column B = index 1)
+                    const times = existingData.map((row, idx) => ({
+                        rowIdx: idx,
+                        userId: row[0]?.toString().replace(/^'/, ''),
+                        time: parseFloat(row[1]?.toString().replace(/^'/, '') || 'NaN')
+                    })).filter(t => !isNaN(t.time));
+
+                    // ScoreBoardUnique: Check if user already has a score
+                    if (sheetName === 'ScoreBoardUnique') {
+                        const existingEntry = times.find(t => t.userId === userID);
+                        if (existingEntry) {
+                            // Only update if new time is better
+                            if (timeInSeconds < existingEntry.time) {
+                                const updateRow = existingEntry.rowIdx + 1;
+                                await sheets.spreadsheets.values.update({
+                                    spreadsheetId,
+                                    range: `${sheetName}!${startColLetter}${updateRow}:${endColLetter}${updateRow}`,
+                                    valueInputOption: 'USER_ENTERED',
+                                    requestBody: { values: [rowData] }
+                                });
+                                results[sheetName][period] = 'updated';
+                                console.log(`[SAVE_TIME] ${sheetName}/${period}: Updated row ${updateRow}`);
+                            } else {
+                                results[sheetName][period] = 'skipped (not faster)';
+                                console.log(`[SAVE_TIME] ${sheetName}/${period}: Skipped (existing ${existingEntry.time} <= new ${timeInSeconds})`);
+                            }
+                            continue;
+                        }
+                    }
+
+                    // Check 1000 row limit
+                    if (times.length >= MAX_ROWS_PER_PERIOD) {
+                        // Sort by time to find worst score
+                        times.sort((a, b) => a.time - b.time);
+                        const worstTime = times[times.length - 1].time;
+
+                        if (timeInSeconds >= worstTime) {
+                            results[sheetName][period] = 'skipped (not in top 1000)';
+                            console.log(`[SAVE_TIME] ${sheetName}/${period}: Skipped (${timeInSeconds} >= worst ${worstTime})`);
+                            continue;
+                        }
+
+                        // Replace worst score
+                        const worstRowIdx = times[times.length - 1].rowIdx + 1;
+                        await sheets.spreadsheets.values.update({
+                            spreadsheetId,
+                            range: `${sheetName}!${startColLetter}${worstRowIdx}:${endColLetter}${worstRowIdx}`,
+                            valueInputOption: 'USER_ENTERED',
+                            requestBody: { values: [rowData] }
+                        });
+                        results[sheetName][period] = `replaced row ${worstRowIdx}`;
+                        console.log(`[SAVE_TIME] ${sheetName}/${period}: Replaced worst at row ${worstRowIdx}`);
+                    } else {
+                        // Append new row
+                        const newRow = existingData.length + 1;
+                        await sheets.spreadsheets.values.update({
+                            spreadsheetId,
+                            range: `${sheetName}!${startColLetter}${newRow}:${endColLetter}${newRow}`,
+                            valueInputOption: 'USER_ENTERED',
+                            requestBody: { values: [rowData] }
+                        });
+                        results[sheetName][period] = `added row ${newRow}`;
+                        console.log(`[SAVE_TIME] ${sheetName}/${period}: Added at row ${newRow}`);
+                    }
+                } catch (periodErr) {
+                    console.error(`[SAVE_TIME] Error writing to ${sheetName}/${period}:`, periodErr.message);
+                    results[sheetName][period] = `error: ${periodErr.message}`;
+                }
             }
-        });
+        }
 
-        const scoreboardRange = appendResponse.data.updates.updatedRange;
-        console.log(`[SAVE_TIME] Successfully saved to ${scoreboardRange}`);
+        // === 7. Return Success ===
+        console.log(`[SAVE_TIME] Completed:`, results);
 
-        // === 7. Return Success Response ===
         sendSuccess(res, {
             userID,
-            time: timeInSeconds,
+            time: timeInSeconds.toFixed(3),
             scramble: scramble || '',
             date: formattedDate,
             timestamp: formattedTime,
-            range: scoreboardRange
+            results
         }, '成績已成功保存');
 
     } catch (err) {
