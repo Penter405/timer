@@ -7,10 +7,19 @@ const {
     getBucketIndex
 } = require('../lib/apiUtils');
 
+// Must match update_nickname.js settings
+const USERMAP_TEAM_COUNT = 8;
+
 /**
  * Get Nicknames API
  * Batch resolve User IDs to Nicknames using Hash Table lookup
  * Architecture: Web → Vercel → Sheet (option_3_vercel)
+ * 
+ * Flow:
+ * 1. ScoreBoard has UserID in column A
+ * 2. Use UserID as row number in Total sheet to get Email
+ * 3. Hash Email to find bucket in UserMap
+ * 4. Lookup UniqueName (column 3 of bucket) in UserMap
  * 
  * Request Body:
  * - ids: Array of UserIDs to resolve (required)
@@ -33,11 +42,11 @@ module.exports = async (req, res) => {
             return sendError(res, 400, 'Invalid IDs array', '需要提供有效的 ID 陣列');
         }
 
-        console.log(`[GET_NICKNAMES] Resolving ${ids.length} user IDs`);
+        console.log(`[GET_NICKNAMES] Resolving ${ids.length} user IDs:`, ids);
 
         // === 2. Batch Read from Total Sheet (UserID → Email) ===
         // Total sheet stores emails at row number = UserID
-        const totalRanges = ids.map(id => `Total!A${id} `);
+        const totalRanges = ids.map(id => `Total!A${id}`);
 
         const totalRes = await sheets.spreadsheets.values.batchGet({
             spreadsheetId,
@@ -51,44 +60,33 @@ module.exports = async (req, res) => {
             }
         });
 
-        console.log(`[GET_NICKNAMES] Resolved ${Object.keys(idToEmail).length} emails from Total`);
+        console.log(`[GET_NICKNAMES] Resolved ${Object.keys(idToEmail).length} emails from Total:`, idToEmail);
 
-        // === 3. Get UserMap Metadata ===
-        const meta = await sheets.spreadsheets.get({
-            spreadsheetId,
-            fields: 'sheets.properties(title,gridProperties.columnCount)'
-        });
-
-        const userMapProps = meta.data.sheets.find(s => s.properties.title === 'UserMap');
-        if (!userMapProps) {
-            throw new Error('UserMap sheet not found');
-        }
-
-        const userCols = userMapProps.properties.gridProperties.columnCount || 26;
-        const bucketSize = Math.floor(userCols / 3); // 3 columns per bucket
-
-        // === 4. Group Emails by Bucket ===
+        // === 3. Group Emails by Bucket (using fixed 8 teams) ===
         const bucketToEmails = {};
-        Object.values(idToEmail).forEach(email => {
+        Object.entries(idToEmail).forEach(([id, email]) => {
             if (email) {
-                const bucketIdx = getBucketIndex(email, bucketSize);
+                const bucketIdx = getBucketIndex(email, USERMAP_TEAM_COUNT);
                 if (!bucketToEmails[bucketIdx]) {
                     bucketToEmails[bucketIdx] = [];
                 }
-                bucketToEmails[bucketIdx].push(email);
+                bucketToEmails[bucketIdx].push({ id, email });
             }
         });
 
         console.log(`[GET_NICKNAMES] Emails distributed across ${Object.keys(bucketToEmails).length} buckets`);
 
-        // === 5. Batch Read from UserMap (Email → Nickname) ===
+        // === 4. Batch Read from UserMap (Email → Nickname) ===
         const getBucketRange = (bucketIdx) => {
-            const startCol = bucketIdx * 3;
+            const startCol = bucketIdx * 3; // 3 columns per bucket: Email, UserID, UniqueName
             const endCol = startCol + 2;
-            return `UserMap!${getColumnLetter(startCol)}:${getColumnLetter(endCol)} `;
+            return `UserMap!${getColumnLetter(startCol)}:${getColumnLetter(endCol)}`;
         };
 
-        const bucketRanges = Object.keys(bucketToEmails).map(b => getBucketRange(parseInt(b)));
+        const bucketIndices = Object.keys(bucketToEmails).map(b => parseInt(b));
+        const bucketRanges = bucketIndices.map(b => getBucketRange(b));
+
+        console.log(`[GET_NICKNAMES] Reading bucket ranges:`, bucketRanges);
 
         const bucketRes = await sheets.spreadsheets.values.batchGet({
             spreadsheetId,
@@ -97,14 +95,16 @@ module.exports = async (req, res) => {
 
         // Build Email → Nickname map
         const emailToNickname = {};
-        bucketRes.data.valueRanges.forEach(vr => {
+        bucketRes.data.valueRanges.forEach((vr, vrIdx) => {
             const rows = vr.values || [];
+            console.log(`[GET_NICKNAMES] Bucket ${bucketIndices[vrIdx]} has ${rows.length} rows`);
             rows.forEach(row => {
                 if (row && row.length >= 3) {
                     const email = row[0];
-                    const nickname = row[2];
+                    const nickname = row[2]; // UniqueName is in column 3 (index 2)
                     if (email && nickname) {
                         emailToNickname[email] = nickname;
+                        console.log(`[GET_NICKNAMES] Found mapping: ${email} -> ${nickname}`);
                     }
                 }
             });
@@ -112,7 +112,7 @@ module.exports = async (req, res) => {
 
         console.log(`[GET_NICKNAMES] Found ${Object.keys(emailToNickname).length} nicknames in UserMap`);
 
-        // === 6. Build Final UserID → Nickname Map ===
+        // === 5. Build Final UserID → Nickname Map ===
         const finalMap = {};
         ids.forEach(id => {
             const email = idToEmail[id];
@@ -126,9 +126,9 @@ module.exports = async (req, res) => {
             }
         });
 
-        console.log(`[GET_NICKNAMES] Successfully resolved all ${ids.length} IDs`);
+        console.log(`[GET_NICKNAMES] Final map:`, finalMap);
 
-        // === 7. Return Response ===
+        // === 6. Return Response ===
         // Return plain object for backward compatibility
         res.status(200).json(finalMap);
 
