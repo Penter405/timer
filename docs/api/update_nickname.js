@@ -7,6 +7,36 @@ const {
     sendSuccess
 } = require('../lib/apiUtils');
 
+// ================================
+// USERMAP HASH CONFIGURATION
+// ================================
+const USERMAP_TEAM_COUNT = 8; // 8 teams × 3 columns = 24 columns total
+const USERMAP_COLS_PER_TEAM = 3; // Email | UserID | UniqueName
+
+/**
+ * Simple string hash function (same as GAS)
+ * @param {string} str - String to hash
+ * @returns {number} - Hash value
+ */
+function hashString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash);
+}
+
+/**
+ * Get team index for email
+ * @param {string} email - Email to hash
+ * @returns {number} - Team index (0 to USERMAP_TEAM_COUNT-1)
+ */
+function getUserMapTeamIndex(email) {
+    return hashString(email) % USERMAP_TEAM_COUNT;
+}
+
 /**
  * Update Nickname API (Hybrid Architecture)
  * 
@@ -134,38 +164,75 @@ module.exports = async (req, res) => {
             }
         }
 
-        // === 5. Update UserMap with uniqueName ===
-        // UserMap stores: Email | UserID | UniqueName
+        // === 5. Update UserMap with uniqueName (Hash-based) ===
+        // UserMap structure: 8 teams × 3 columns = 24 columns
+        // Each team: [team0_email, team0_userID, team0_uniqueName, team1_email, ...]
         if (uniqueName) {
             try {
-                // Check if email already exists in UserMap
+                // Calculate team columns based on email hash
+                const teamIndex = getUserMapTeamIndex(email);
+                const firstCol = teamIndex * USERMAP_COLS_PER_TEAM + 1; // 1-indexed
+                const lastCol = firstCol + USERMAP_COLS_PER_TEAM - 1;
+
+                // Convert column numbers to letters (1=A, 2=B, etc.)
+                const colToLetter = (col) => String.fromCharCode(64 + col);
+                const firstColLetter = colToLetter(firstCol);
+                const lastColLetter = colToLetter(lastCol);
+
+                console.log(`[UPDATE_NICKNAME] UserMap hash: email=${email}, teamIndex=${teamIndex}, cols=${firstColLetter}-${lastColLetter}`);
+
+                // Get all data from this team's columns (starting from row 1)
                 const userMapRes = await sheets.spreadsheets.values.get({
                     spreadsheetId,
-                    range: 'UserMap!A:A'
+                    range: `UserMap!${firstColLetter}:${lastColLetter}`
                 });
 
-                const userMapRows = userMapRes.data.values || [];
-                const existingIndex = userMapRows.findIndex(row => row[0] === email);
+                const teamData = userMapRes.data.values || [];
 
-                if (existingIndex !== -1) {
-                    // Update existing row (row number = index + 1)
-                    const rowNum = existingIndex + 1;
+                // Search for email in first column of this team
+                let foundRowIndex = -1;
+                for (let i = 0; i < teamData.length; i++) {
+                    if (teamData[i] && teamData[i][0] === email) {
+                        foundRowIndex = i;
+                        break;
+                    }
+                }
+
+                if (foundRowIndex !== -1) {
+                    // Update existing row
+                    const rowNum = foundRowIndex + 1; // 1-indexed
                     await sheets.spreadsheets.values.update({
                         spreadsheetId,
-                        range: `UserMap!A${rowNum}:C${rowNum}`,
+                        range: `UserMap!${firstColLetter}${rowNum}:${lastColLetter}${rowNum}`,
                         valueInputOption: 'USER_ENTERED',
                         requestBody: { values: [[email, userID, uniqueName]] }
                     });
-                    console.log(`[UPDATE_NICKNAME] Updated UserMap row ${rowNum}`);
+                    console.log(`[UPDATE_NICKNAME] Updated UserMap team ${teamIndex} row ${rowNum}`);
                 } else {
-                    // Append new row
-                    await sheets.spreadsheets.values.append({
+                    // Find first empty row in this team
+                    let emptyRowIndex = -1;
+                    for (let i = 0; i < teamData.length; i++) {
+                        if (!teamData[i] || !teamData[i][0]) {
+                            emptyRowIndex = i;
+                            break;
+                        }
+                    }
+
+                    let targetRow;
+                    if (emptyRowIndex !== -1) {
+                        targetRow = emptyRowIndex + 1;
+                    } else {
+                        // Append after last row
+                        targetRow = teamData.length + 1;
+                    }
+
+                    await sheets.spreadsheets.values.update({
                         spreadsheetId,
-                        range: 'UserMap!A:C',
+                        range: `UserMap!${firstColLetter}${targetRow}:${lastColLetter}${targetRow}`,
                         valueInputOption: 'USER_ENTERED',
                         requestBody: { values: [[email, userID, uniqueName]] }
                     });
-                    console.log(`[UPDATE_NICKNAME] Appended to UserMap: ${email}, ${userID}, ${uniqueName}`);
+                    console.log(`[UPDATE_NICKNAME] Added to UserMap team ${teamIndex} row ${targetRow}: ${email}, ${userID}, ${uniqueName}`);
                 }
             } catch (userMapError) {
                 console.error('[UPDATE_NICKNAME] UserMap update failed:', userMapError);
