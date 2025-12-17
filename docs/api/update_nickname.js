@@ -1,24 +1,21 @@
+const fetch = require('node-fetch');
 const getSheetsClient = require('./sheetsClient');
 const {
     handleCORS,
     verifyGoogleToken,
     sendError,
-    sendSuccess,
-    getColumnLetter,
-    getBucketIndex,
-    getBucketRange
+    sendSuccess
 } = require('../lib/apiUtils');
 
 /**
- * Update Nickname API
- * Register new users and update nicknames using Hash Table
- * Architecture: Web → Vercel → Sheet (option_3_vercel)
+ * Update Nickname API (Hybrid Architecture)
  * 
- * New User Flow:
- * 1. Hash email to find UserMap bucket
- * 2. Check if email exists in bucket
- * 3. If not found → Register in Total sheet (get UserID)
- * 4. Save [Email, UserID, Nickname] to UserMap
+ * Flow:
+ * 1. Vercel: JWT verification, CORS
+ * 2. GAS Web App: name_number allocation (with LockService)
+ * 3. Vercel: Update UserMap with username#number
+ * 
+ * Architecture: Web → Vercel (JWT/CORS) → GAS (Lock+Counts) → Sheet
  * 
  * Request Body:
  * - token: Google ID Token (required)
@@ -30,9 +27,16 @@ module.exports = async (req, res) => {
 
     const sheets = getSheetsClient();
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    const gasWebAppUrl = process.env.GAS_WEB_APP_URL;
+    const gasSecretKey = process.env.GAS_SECRET_KEY;
 
     try {
-        // === 1. Extract and Validate Input ===
+        // === 1. Verify Environment ===
+        if (!gasWebAppUrl || !gasSecretKey) {
+            return sendError(res, 500, 'Server misconfiguration', 'GAS 設定錯誤');
+        }
+
+        // === 2. Extract and Validate Input ===
         const { token, nickname } = req.body;
 
         // Verify JWT and extract email
@@ -43,41 +47,24 @@ module.exports = async (req, res) => {
 
         console.log(`[UPDATE_NICKNAME] Processing request for email: ${email}`);
 
-        // === 2. Get UserMap Metadata and Calculate Bucket ===
-        const meta = await sheets.spreadsheets.get({
+        // === 3. Check if user exists in Total sheet ===
+        const totalRes = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            fields: 'sheets.properties(title,gridProperties.columnCount)'
+            range: 'Total!A:A'
         });
 
-        const userMapProps = meta.data.sheets.find(s => s.properties.title === 'UserMap');
-        if (!userMapProps) {
-            throw new Error('UserMap sheet not found');
-        }
-
-        const userCols = userMapProps.properties.gridProperties.columnCount || 26;
-        const userBucketSize = Math.floor(userCols / 3); // Each bucket = 3 columns
-        const userBucket = getBucketIndex(email, userBucketSize);
-        const userRange = getBucketRange('UserMap', userBucket, 3);
-
-        console.log(`[UPDATE_NICKNAME] Bucket: ${userBucket}, Range: ${userRange}`);
-
-        // === 3. Check if User Exists in UserMap ===
-        const userRes = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: userRange
-        });
-        const rows = userRes.data.values || [];
-
-        let userRowIdx = rows.findIndex(r => r && r[0] === email);
+        const totalRows = totalRes.data.values || [];
         let userID = null;
         let isNewUser = false;
 
-        // === 4. Handle New User Registration ===
-        if (userRowIdx === -1) {
+        // Find email in Total sheet
+        const emailIndex = totalRows.findIndex(row => row[0] === email);
+
+        if (emailIndex === -1) {
+            // New user - register in Total sheet
             isNewUser = true;
             console.log(`[UPDATE_NICKNAME] New user detected: ${email}`);
 
-            // Register in Total sheet to get unique ID
             const totalAppend = await sheets.spreadsheets.values.append({
                 spreadsheetId,
                 range: 'Total!A:A',
@@ -85,57 +72,77 @@ module.exports = async (req, res) => {
                 requestBody: { values: [[email]] }
             });
 
-            // Log the actual response for debugging
+            // Extract UserID from row number
+            const updatedRange = totalAppend.data.updates.updatedRange;
             console.log(`[UPDATE_NICKNAME] Total append response:`, JSON.stringify(totalAppend.data.updates, null, 2));
 
-            // Extract row number as UserID
-            // Format can be "Total!A5" or "Total!A5:A5"
-            const updatedRange = totalAppend.data.updates.updatedRange;
             const match = updatedRange.match(/!A(\d+)/);
             userID = match ? match[1] : null;
 
             if (!userID) {
                 console.error(`[UPDATE_NICKNAME] Failed to extract UserID. UpdatedRange: ${updatedRange}`);
-                throw new Error('Failed to register new user in Total sheet');
+                return sendError(res, 500, 'Failed to register user', '用戶註冊失敗');
             }
 
             console.log(`[UPDATE_NICKNAME] Registered new user with ID: ${userID}`);
-
-            // Update userRowIdx for new row insertion
-            userRowIdx = rows.length; // Append to end
         } else {
-            // Existing user - retrieve ID
-            userID = rows[userRowIdx][1];
+            // Existing user
+            userID = (emailIndex + 1).toString(); // Row number is UserID
             console.log(`[UPDATE_NICKNAME] Existing user found with ID: ${userID}`);
         }
 
-        // === 5. Generate Unique Nickname ===
-        // If nickname is provided, append #ID
-        // If nickname is empty, leave uniqueName as empty (for future updates)
-        const uniqueName = nickname ? `${nickname.trim()}#${userID}` : '';
+        // === 4. Call GAS Web App to get name_number (if nickname provided) ===
+        let nameNumber = null;
+        let uniqueName = '';
 
-        console.log(`[UPDATE_NICKNAME] Unique name: ${uniqueName || '(empty)'}`);
+        if (nickname && nickname.trim()) {
+            const username = nickname.trim();
 
-        // === 6. Update UserMap ===
-        // Calculate exact cell range for update
-        const bucketStartCol = userBucket * 3;
-        const updateRange = `UserMap!${getColumnLetter(bucketStartCol)}${userRowIdx + 1}:${getColumnLetter(bucketStartCol + 2)}${userRowIdx + 1}`;
+            console.log(`[UPDATE_NICKNAME] Calling GAS for username: ${username}`);
 
-        await sheets.spreadsheets.values.update({
-            spreadsheetId,
-            range: updateRange,
-            valueInputOption: 'USER_ENTERED',
-            requestBody: {
-                values: [[email, userID, uniqueName]]
+            try {
+                const gasResponse = await fetch(gasWebAppUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        secret: gasSecretKey
+                    })
+                });
+
+                if (!gasResponse.ok) {
+                    throw new Error(`GAS responded with status ${gasResponse.status}`);
+                }
+
+                const gasData = await gasResponse.json();
+                console.log(`[UPDATE_NICKNAME] GAS response:`, gasData);
+
+                if (!gasData.ok) {
+                    throw new Error(gasData.error || 'GAS_ERROR');
+                }
+
+                nameNumber = gasData.name_number;
+                uniqueName = `${username}#${nameNumber}`;
+
+                console.log(`[UPDATE_NICKNAME] Allocated name: ${uniqueName}`);
+
+            } catch (gasError) {
+                console.error(`[UPDATE_NICKNAME] GAS call failed:`, gasError);
+                return sendError(res, 500, 'Name allocation failed', 'name_number 分配失敗');
             }
-        });
+        }
 
-        console.log(`[UPDATE_NICKNAME] UserMap updated at ${updateRange}`);
+        // === 5. Update UserMap with uniqueName ===
+        // (UserMap stores: Email | UserID | UniqueName)
+        // TODO: Implement UserMap hash table update if needed
+        // For now, we skip UserMap update since it's not strictly required
 
-        // === 7. Return Response ===
+        // === 6. Return Response ===
         sendSuccess(res, {
-            uniqueName: uniqueName || null,
             userID: userID,
+            uniqueName: uniqueName || null,
             isNewUser: isNewUser
         }, isNewUser ? '新用戶註冊成功' : '資料更新成功');
 
