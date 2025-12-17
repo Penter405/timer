@@ -233,15 +233,177 @@ function escapeHtml(text) {
         .replace(/'/g, "&#039;");
 }
 
+// ================================
+// PERIOD CONFIGURATION
+// ================================
+
+/**
+ * Period to column range mapping
+ * Each period uses 6 columns: UserID, Time, Scramble, Date, Time, Status
+ */
+const PERIOD_COLUMNS = {
+    all: { start: 'A', end: 'F' },      // 歷史 (A-F)
+    year: { start: 'G', end: 'L' },     // 本年 (G-L)
+    month: { start: 'M', end: 'R' },    // 本月 (M-R)
+    week: { start: 'S', end: 'X' },     // 本周 (S-X)
+    today: { start: 'Y', end: 'AD' }    // 本日 (Y-AD)
+};
+
+/**
+ * Get the JSON URL for a specific sheet and column range
+ */
+function getSheetJsonUrl(sheetName, startCol, endCol) {
+    // Google Sheets gviz query with column range
+    const colQuery = `select ${startCol}, ${String.fromCharCode(startCol.charCodeAt(0) + 1)}, ${String.fromCharCode(startCol.charCodeAt(0) + 2)}, ${String.fromCharCode(startCol.charCodeAt(0) + 3)}, ${String.fromCharCode(startCol.charCodeAt(0) + 4)}, ${String.fromCharCode(startCol.charCodeAt(0) + 5)}`;
+    return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${sheetName}&tq=${encodeURIComponent(colQuery)}`;
+}
+
+/**
+ * Fetch leaderboard with current filter settings
+ */
+async function fetchLeaderboardWithFilters() {
+    const container = document.getElementById('leaderboard');
+    if (!container) return;
+
+    // Get filter values
+    const periodSelect = document.getElementById('periodSelect');
+    const uniqueToggle = document.getElementById('uniqueToggle');
+
+    const period = periodSelect ? periodSelect.value : 'all';
+    const uniqueOnly = uniqueToggle ? uniqueToggle.checked : false;
+    const timezone = getSelectedTimezone();
+
+    // Determine sheet and columns
+    const sheetName = uniqueOnly ? 'ScoreBoardUnique' : 'ScoreBoard';
+    const cols = PERIOD_COLUMNS[period] || PERIOD_COLUMNS.all;
+
+    console.log(`[SCOREBOARD] Fetching: sheet=${sheetName}, period=${period}, cols=${cols.start}-${cols.end}, tz=${timezone}`);
+
+    container.innerHTML = '<p>正在讀取排行榜...</p>';
+
+    try {
+        // Build URL with specific column range
+        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${sheetName}&range=${cols.start}:${cols.end}`;
+
+        const boardRes = await fetch(url);
+        if (!boardRes.ok) throw new Error('Network error');
+
+        const text = await boardRes.text();
+        const jsonString = text.substring(47).slice(0, -2);
+        const json = JSON.parse(jsonString);
+
+        if (!json.table || !json.table.rows) {
+            renderLeaderboard([]);
+            return;
+        }
+
+        const rows = json.table.rows;
+        const idsToResolve = [];
+
+        const getVal = (row, idx) => {
+            const cell = row.c[idx];
+            let v = cell ? (cell.v === null ? '' : cell.v) : '';
+            if (typeof v === 'string' && v.startsWith("'")) v = v.substring(1);
+            return v;
+        };
+
+        const rawData = rows.map(row => {
+            const c = row.c;
+            if (!c) return null;
+
+            const userId = getVal(row, 0);
+            if (userId) idsToResolve.push(userId);
+
+            let timeVal = getVal(row, 1);
+            const time = parseFloat(timeVal);
+
+            if (isNaN(time)) return null;
+
+            return {
+                userId: userId,
+                time: time,
+                scramble: getVal(row, 2),
+                date: getVal(row, 3),
+                timeStr: getVal(row, 4),
+                status: getVal(row, 5)
+            };
+        }).filter(item => item !== null);
+
+        // Resolve nicknames
+        const nicknameMap = await fetchNicknamesFromAPI(idsToResolve);
+
+        const times = rawData.map(item => {
+            let displayName = nicknameMap[item.userId];
+            if (!displayName) displayName = `ID:${item.userId}`;
+
+            return {
+                ...item,
+                nickname: displayName
+            };
+        });
+
+        // Sort by time (ascending)
+        times.sort((a, b) => a.time - b.time);
+
+        renderLeaderboard(times);
+
+    } catch (err) {
+        console.error('[SCOREBOARD] Error:', err);
+        container.innerHTML = `<p style="color:red">無法讀取排行榜<br><small>請確認網路連線或 API 是否正常運作。</small></p>`;
+    }
+}
+
+/**
+ * Initialize all scoreboard controls
+ */
+function initScoreboardControls() {
+    // Timezone selector
+    const timezoneSelect = document.getElementById('timezoneSelect');
+    if (timezoneSelect) {
+        timezoneSelect.value = getSelectedTimezone();
+        timezoneSelect.addEventListener('change', (e) => {
+            localStorage.setItem('scoreboard_timezone', e.target.value);
+        });
+    }
+
+    // Period selector - restore from localStorage
+    const periodSelect = document.getElementById('periodSelect');
+    if (periodSelect) {
+        const savedPeriod = localStorage.getItem('scoreboard_period') || 'all';
+        periodSelect.value = savedPeriod;
+        periodSelect.addEventListener('change', (e) => {
+            localStorage.setItem('scoreboard_period', e.target.value);
+        });
+    }
+
+    // Unique toggle - restore from localStorage
+    const uniqueToggle = document.getElementById('uniqueToggle');
+    if (uniqueToggle) {
+        const savedUnique = localStorage.getItem('scoreboard_unique') === 'true';
+        uniqueToggle.checked = savedUnique;
+        uniqueToggle.addEventListener('change', (e) => {
+            localStorage.setItem('scoreboard_unique', e.target.checked);
+        });
+    }
+
+    // Submit button
+    const submitBtn = document.getElementById('scoreboardSubmit');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', fetchLeaderboardWithFilters);
+    }
+}
+
 /* Expose to Global Scope for Router */
 if (typeof window !== 'undefined') {
-    window.fetchLeaderboard = fetchLeaderboard;
-    window.initTimezoneSelector = initTimezoneSelector;
+    window.fetchLeaderboard = fetchLeaderboardWithFilters;
+    window.initTimezoneSelector = initScoreboardControls; // Keep old name for compatibility
+    window.initScoreboardControls = initScoreboardControls;
+    window.fetchLeaderboardWithFilters = fetchLeaderboardWithFilters;
 
-    // Initialize timezone selector when DOM is ready
+    // Initialize controls when DOM is ready
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initTimezoneSelector);
+        document.addEventListener('DOMContentLoaded', initScoreboardControls);
     } else {
-        initTimezoneSelector();
+        initScoreboardControls();
     }
 }
