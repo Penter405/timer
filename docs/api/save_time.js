@@ -7,7 +7,7 @@ const {
     formatDate,
     formatTime,
     formatSheetValue
-} = require('./apiUtils');
+} = require('../lib/apiUtils');
 
 /**
  * Save Time API
@@ -55,7 +55,7 @@ module.exports = async (req, res) => {
             return sendError(res, 400, 'Missing or invalid time', '缺少或無效的時間數據');
         }
 
-        console.log(`[SAVE_TIME] User ${email} (ID: ${userID}) saving time: ${time}ms`);
+        console.log(`[SAVE_TIME] User ${email} (ID: ${userID}) saving time: ${time} ms`);
 
         // === 2. Format Data for Google Sheets ===
         const timestamp = date ? new Date(date) : new Date();
@@ -76,7 +76,7 @@ module.exports = async (req, res) => {
             formatSheetValue('Verified')        // Status
         ];
 
-        console.log(`[SAVE_TIME] Row data:`, rowData);
+        console.log(`[SAVE_TIME] Row data: `, rowData);
 
         // === 3. Append to ScoreBoard Sheet ===
         const appendResponse = await sheets.spreadsheets.values.append({
@@ -89,7 +89,7 @@ module.exports = async (req, res) => {
         });
 
         const updatedRange = appendResponse.data.updates.updatedRange;
-        console.log(`[SAVE_TIME] Successfully saved to ${updatedRange}`);
+        console.log(`[SAVE_TIME] Successfully saved to ${updatedRange} `);
 
         // === 4. Return Success Response ===
         sendSuccess(res, {

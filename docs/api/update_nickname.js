@@ -7,7 +7,7 @@ const {
     getColumnLetter,
     getBucketIndex,
     getBucketRange
-} = require('./apiUtils');
+} = require('../lib/apiUtils');
 
 /**
  * Update Nickname API
