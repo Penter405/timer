@@ -387,6 +387,32 @@ document.body.addEventListener('mouseup', areaHoldEnd);
 document.body.addEventListener('touchstart', areaHoldStart, { passive: false });
 document.body.addEventListener('touchend', areaHoldEnd, { passive: false });
 
+// --- Prevent Pinch Zoom During Timer/Inspection ---
+// Block multi-touch gestures when timer is active
+document.addEventListener('touchstart', (e) => {
+    // If multiple fingers and timer is in active state, prevent zoom
+    if (e.touches.length > 1 && (running || inspectionOn || holding)) {
+        e.preventDefault();
+    }
+}, { passive: false });
+
+document.addEventListener('touchmove', (e) => {
+    // Prevent pinch zoom during timing/inspection
+    if (e.touches.length > 1 && (running || inspectionOn || holding)) {
+        e.preventDefault();
+    }
+}, { passive: false });
+
+// Also prevent double-tap zoom during active states
+let lastTouchTime = 0;
+document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTouchTime < 300 && (running || inspectionOn || holding)) {
+        e.preventDefault();
+    }
+    lastTouchTime = now;
+}, { passive: false });
+
 // --- Result Confirmation Popup Logic ---
 const resultPopup = document.getElementById('resultPopup');
 const popupTimeEl = document.getElementById('popupTime');
