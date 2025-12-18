@@ -66,6 +66,9 @@ let inspectionSec = 15;
 let inspectionHoldTimeout = null;
 let inspectionReady = false;
 
+// Result Popup State
+let pendingResult = null; // { ms: number, scramble: string }
+
 // Full Mode (Touch Anywhere)
 let fullMode = false;
 
@@ -115,7 +118,8 @@ function stopTimer(save = true) {
     renderTime(finalMs); // Sync display to exact final time
 
     if (save) {
-        addTime(finalMs);
+        // Show popup instead of saving directly
+        showResultPopup(finalMs, scrambleEl.textContent);
     } else {
         display.style.color = COLORS[0]; // White
     }
@@ -382,6 +386,65 @@ document.body.addEventListener('mousedown', areaHoldStart);
 document.body.addEventListener('mouseup', areaHoldEnd);
 document.body.addEventListener('touchstart', areaHoldStart, { passive: false });
 document.body.addEventListener('touchend', areaHoldEnd, { passive: false });
+
+// --- Result Confirmation Popup Logic ---
+const resultPopup = document.getElementById('resultPopup');
+const popupTimeEl = document.getElementById('popupTime');
+const resultOKBtn = document.getElementById('resultOK');
+const resultPlus2Btn = document.getElementById('resultPlus2');
+const resultDNFBtn = document.getElementById('resultDNF');
+
+function showResultPopup(ms, scramble) {
+    pendingResult = { ms: ms, scramble: scramble };
+    popupTimeEl.textContent = fmt(ms);
+    resultPopup.classList.remove('hidden');
+}
+
+function hideResultPopup() {
+    resultPopup.classList.add('hidden');
+    pendingResult = null;
+}
+
+// OK Button: Save as-is
+resultOKBtn.addEventListener('click', () => {
+    if (pendingResult) {
+        addTime(pendingResult.ms);
+    }
+    hideResultPopup();
+});
+
+// +2 Button: Add 2 seconds (2000ms)
+resultPlus2Btn.addEventListener('click', () => {
+    if (pendingResult) {
+        const adjustedMs = pendingResult.ms + 2000;
+        addTime(adjustedMs);
+        renderTime(adjustedMs); // Update display to show +2 result
+    }
+    hideResultPopup();
+});
+
+// DNF Button: Discard (don't save)
+resultDNFBtn.addEventListener('click', () => {
+    // DNF: Don't save, just close popup and reset
+    hideResultPopup();
+    newScramble();
+});
+
+// Keyboard shortcuts for popup (1=OK, 2=+2, 3=DNF)
+document.addEventListener('keydown', (e) => {
+    if (!resultPopup.classList.contains('hidden')) {
+        if (e.key === '1' || e.key === 'Enter') {
+            e.preventDefault();
+            resultOKBtn.click();
+        } else if (e.key === '2') {
+            e.preventDefault();
+            resultPlus2Btn.click();
+        } else if (e.key === '3' || e.key === 'Escape') {
+            e.preventDefault();
+            resultDNFBtn.click();
+        }
+    }
+});
 
 // Init
 newScramble();
