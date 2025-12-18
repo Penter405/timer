@@ -453,3 +453,82 @@ select option {
         font-size: 13px;
     }
 }
+
+/* ================================
+   Result Confirmation Popup
+   ================================ */
+
+.result-popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.result-popup-overlay.hidden {
+    display: none;
+}
+
+.result-popup {
+    background: var(--card);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 32px 48px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.result-popup-time {
+    font-size: 48px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    font-family: 'SF Mono', 'Consolas', monospace;
+    color: #e6eef6;
+}
+
+.result-popup-buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+}
+
+.result-btn {
+    width: 80px;
+    height: 50px;
+    font-size: 18px;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.result-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.result-btn:active {
+    transform: translateY(0);
+}
+
+.result-ok {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.result-plus2 {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+}
+
+.result-dnf {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+}
