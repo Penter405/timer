@@ -387,18 +387,22 @@ document.body.addEventListener('mouseup', areaHoldEnd);
 document.body.addEventListener('touchstart', areaHoldStart, { passive: false });
 document.body.addEventListener('touchend', areaHoldEnd, { passive: false });
 
-// --- Prevent Pinch Zoom During Timer/Inspection ---
-// Block multi-touch gestures when timer is active
+// --- Prevent Pinch Zoom During Timer/Inspection/Popup ---
+// Block multi-touch gestures when timer is active or popup is showing
+function isZoomBlocked() {
+    return running || inspectionOn || holding || pendingResult !== null;
+}
+
 document.addEventListener('touchstart', (e) => {
     // If multiple fingers and timer is in active state, prevent zoom
-    if (e.touches.length > 1 && (running || inspectionOn || holding)) {
+    if (e.touches.length > 1 && isZoomBlocked()) {
         e.preventDefault();
     }
 }, { passive: false });
 
 document.addEventListener('touchmove', (e) => {
-    // Prevent pinch zoom during timing/inspection
-    if (e.touches.length > 1 && (running || inspectionOn || holding)) {
+    // Prevent pinch zoom during timing/inspection/popup
+    if (e.touches.length > 1 && isZoomBlocked()) {
         e.preventDefault();
     }
 }, { passive: false });
@@ -407,7 +411,7 @@ document.addEventListener('touchmove', (e) => {
 let lastTouchTime = 0;
 document.addEventListener('touchend', (e) => {
     const now = Date.now();
-    if (now - lastTouchTime < 300 && (running || inspectionOn || holding)) {
+    if (now - lastTouchTime < 300 && isZoomBlocked()) {
         e.preventDefault();
     }
     lastTouchTime = now;
@@ -424,6 +428,12 @@ function showResultPopup(ms, scramble) {
     pendingResult = { ms: ms, scramble: scramble };
     popupTimeEl.textContent = fmt(ms);
     resultPopup.classList.remove('hidden');
+
+    // Reset zoom to default scale when popup appears
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (viewport) {
+        viewport.setAttribute('content', 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no');
+    }
 }
 
 function hideResultPopup() {
