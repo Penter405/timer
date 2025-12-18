@@ -185,6 +185,7 @@ function beginHold() {
     ready = false;
     holdStart = Date.now();
     display.style.color = COLORS[2]; // Red
+    setZoomLock(true); // Lock zoom during hold
 
     // check long press > 0.55s
     setTimeout(() => {
@@ -300,6 +301,7 @@ function startInspection() {
     inspectionOn = true;
     fullMode = true; // Enable Full Mode
     document.body.classList.add('no-select'); // Disable selection
+    setZoomLock(true); // Lock zoom during inspection
 
     // Set color to Orange
     display.style.color = COLORS[1];
@@ -327,6 +329,7 @@ function stopPlaying() {
     ready = false;
     fullMode = false;
     document.body.classList.remove('no-select'); // Enable selection
+    setZoomLock(false); // Unlock zoom when idle
 }
 
 // Inspection Toggle Button Long Press
@@ -393,6 +396,18 @@ function isZoomBlocked() {
     return running || inspectionOn || holding || pendingResult !== null;
 }
 
+// Dynamic viewport zoom control
+function setZoomLock(locked) {
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (viewport) {
+        if (locked) {
+            viewport.setAttribute('content', 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no');
+        } else {
+            viewport.setAttribute('content', 'width=device-width,initial-scale=1');
+        }
+    }
+}
+
 document.addEventListener('touchstart', (e) => {
     // If multiple fingers and timer is in active state, prevent zoom
     if (e.touches.length > 1 && isZoomBlocked()) {
@@ -439,6 +454,7 @@ function showResultPopup(ms, scramble) {
 function hideResultPopup() {
     resultPopup.classList.add('hidden');
     pendingResult = null;
+    setZoomLock(false); // Unlock zoom when popup closes
 }
 
 // OK Button: Save as-is
