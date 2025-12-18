@@ -197,7 +197,7 @@ module.exports = async (req, res) => {
         // === 5. Update UserMap with uniqueName (Hash-based) ===
         // UserMap structure: 8 teams × 3 columns = 24 columns
         // Each team: [team0_email, team0_userID, team0_uniqueName, team1_email, ...]
-        if (uniqueName) {
+        if (uniqueName || isNewUser) {
             try {
                 // Calculate team columns based on email hash
                 const teamIndex = getUserMapTeamIndex(email);
