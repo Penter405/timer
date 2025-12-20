@@ -638,19 +638,19 @@ function updateButtonHints() {
     const showConfirmHints = settings.enabled && settings.confirmHints;
 
     if (showPlayHints) {
-        if (toggleInspBtn) toggleInspBtn.textContent = '開始檢查 (I)';
-        if (newScrambleBtn) newScrambleBtn.textContent = '新亂序 (S)';
-        if (startBtnEl) startBtnEl.textContent = '開始/停止 (Space)';
+        if (toggleInspBtn) toggleInspBtn.innerHTML = '<span class="btn-label">開始檢查</span><span class="btn-hint">(I)</span>';
+        if (newScrambleBtn) newScrambleBtn.innerHTML = '<span class="btn-label">新亂序</span><span class="btn-hint">(S)</span>';
+        if (startBtnEl) startBtnEl.innerHTML = '<span class="btn-label">開始/停止</span><span class="btn-hint">(Space)</span>';
     } else {
-        if (toggleInspBtn) toggleInspBtn.textContent = '開始檢查';
-        if (newScrambleBtn) newScrambleBtn.textContent = '新亂序';
-        if (startBtnEl) startBtnEl.textContent = '開始/停止';
+        if (toggleInspBtn) toggleInspBtn.innerHTML = '<span class="btn-label">開始檢查</span>';
+        if (newScrambleBtn) newScrambleBtn.innerHTML = '<span class="btn-label">新亂序</span>';
+        if (startBtnEl) startBtnEl.innerHTML = '<span class="btn-label">開始/停止</span>';
     }
 
     if (showConfirmHints) {
-        if (okBtn) okBtn.textContent = 'OK (O)';
-        if (plus2Btn) plus2Btn.textContent = '+2 (2)';
-        if (dnfBtn) dnfBtn.textContent = 'DNF (D)';
+        if (okBtn) okBtn.innerHTML = '<span class="btn-label">OK</span><span class="btn-hint">(O)</span>';
+        if (plus2Btn) plus2Btn.innerHTML = '<span class="btn-label">+2</span><span class="btn-hint">(2)</span>';
+        if (dnfBtn) dnfBtn.innerHTML = '<span class="btn-label">DNF</span><span class="btn-hint">(D)</span>';
     } else {
         if (okBtn) okBtn.textContent = 'OK';
         if (plus2Btn) plus2Btn.textContent = '+2';

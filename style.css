@@ -117,6 +117,27 @@ button.primary {
     font-size: 14px;
 }
 
+/* Timer control buttons - fixed size */
+.controls button {
+    min-width: 100px;
+    min-height: 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.2;
+}
+
+.controls button .btn-label {
+    font-size: 14px;
+}
+
+.controls button .btn-hint {
+    font-size: 11px;
+    opacity: 0.7;
+    margin-top: 2px;
+}
+
 .scramble {
     font-family: monospace;
     background: #061022;
@@ -499,14 +520,29 @@ select option {
 }
 
 .result-btn {
-    width: 80px;
-    height: 50px;
+    min-width: 80px;
+    min-height: 50px;
     font-size: 18px;
     font-weight: 600;
     border: none;
     border-radius: 10px;
     cursor: pointer;
     transition: transform 0.15s, box-shadow 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+}
+
+.result-btn .btn-label {
+    font-size: 18px;
+}
+
+.result-btn .btn-hint {
+    font-size: 11px;
+    opacity: 0.8;
+    margin-top: 2px;
 }
 
 .result-btn:hover {
