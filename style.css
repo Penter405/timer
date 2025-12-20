@@ -532,3 +532,28 @@ select option {
     background: linear-gradient(135deg, #ef4444, #dc2626);
     color: white;
 }
+
+/* Sub-settings (collapsible) */
+.sub-settings {
+    margin-left: 16px;
+    padding-left: 16px;
+    border-left: 2px solid rgba(255, 255, 255, 0.1);
+    margin-top: 8px;
+}
+
+.sub-settings.hidden {
+    display: none;
+}
+
+.sub-setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.sub-setting-item label:first-child {
+    font-size: 13px;
+    color: var(--muted);
+}

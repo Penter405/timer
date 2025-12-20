@@ -215,6 +215,9 @@ function endHold() {
 // --- 事件監聽 Event Listeners ---
 let spaceHeld = false;
 document.addEventListener('keydown', e => {
+    // Check if play keyboard shortcuts are allowed
+    if (typeof canUsePlayKeyboard === 'function' && !canUsePlayKeyboard()) return;
+
     if (e.code === 'Space') {
         e.preventDefault();
         if (!spaceHeld) {
@@ -236,12 +239,11 @@ document.addEventListener('keydown', e => {
 });
 
 document.addEventListener('keyup', e => {
-    if (e.code === 'Space') {
+    // Always handle keyup for Space if it was held (to properly end hold)
+    if (e.code === 'Space' && spaceHeld) {
         e.preventDefault();
-        if (spaceHeld) {
-            spaceHeld = false;
-            endHold();
-        }
+        spaceHeld = false;
+        endHold();
     }
 });
 
@@ -482,22 +484,210 @@ resultDNFBtn.addEventListener('click', () => {
     newScramble();
 });
 
-// Keyboard shortcuts for popup (1=OK, 2=+2, 3=DNF)
+// Keyboard shortcuts for popup (O=OK, 2=+2, D=DNF)
 document.addEventListener('keydown', (e) => {
     if (!resultPopup.classList.contains('hidden')) {
-        if (e.key === '1' || e.key === 'Enter') {
+        // Check if confirm keyboard shortcuts are allowed
+        if (typeof canUseConfirmKeyboard === 'function' && !canUseConfirmKeyboard()) return;
+
+        if (e.key === 'o' || e.key === 'O' || e.key === 'Enter') {
             e.preventDefault();
             resultOKBtn.click();
         } else if (e.key === '2') {
             e.preventDefault();
             resultPlus2Btn.click();
-        } else if (e.key === '3' || e.key === 'Escape') {
+        } else if (e.key === 'd' || e.key === 'D' || e.key === 'Escape') {
             e.preventDefault();
             resultDNFBtn.click();
         }
     }
 });
 
+// --- Keyboard Settings & Shortcut Logic ---
+
+/**
+ * Detect if the device likely has a physical keyboard.
+ */
+function hasKeyboard() {
+    const hasFinePointer = window.matchMedia('(pointer: fine)').matches;
+    const hasHover = window.matchMedia('(hover: hover)').matches;
+    return hasFinePointer && hasHover;
+}
+
+/**
+ * Check if user is focused in an input field
+ */
+function isInputFocused() {
+    const active = document.activeElement;
+    if (!active) return false;
+    const tag = active.tagName.toLowerCase();
+    return tag === 'input' || tag === 'textarea' || active.isContentEditable;
+}
+
+/**
+ * Get keyboard settings from localStorage
+ */
+function getKeyboardSettings() {
+    const defaults = {
+        enabled: hasKeyboard(), // Default based on device detection
+        playHints: true,
+        confirmHints: true,
+        playEnabled: true,
+        confirmEnabled: true
+    };
+
+    const saved = localStorage.getItem('keyboard_settings');
+    if (saved) {
+        try {
+            return { ...defaults, ...JSON.parse(saved) };
+        } catch (e) {
+            return defaults;
+        }
+    }
+    return defaults;
+}
+
+/**
+ * Save keyboard settings to localStorage
+ */
+function saveKeyboardSettings(settings) {
+    localStorage.setItem('keyboard_settings', JSON.stringify(settings));
+}
+
+/**
+ * Initialize keyboard settings UI
+ */
+function initKeyboardSettings() {
+    const masterToggle = document.getElementById('keyboardMasterToggle');
+    const subSettings = document.getElementById('keyboardSubSettings');
+    const playHintsToggle = document.getElementById('keyboardPlayHints');
+    const confirmHintsToggle = document.getElementById('keyboardConfirmHints');
+    const playEnabledToggle = document.getElementById('keyboardPlayEnabled');
+    const confirmEnabledToggle = document.getElementById('keyboardConfirmEnabled');
+
+    if (!masterToggle) return; // Settings page not loaded yet
+
+    const settings = getKeyboardSettings();
+
+    // Set initial values
+    masterToggle.checked = settings.enabled;
+    if (playHintsToggle) playHintsToggle.checked = settings.playHints;
+    if (confirmHintsToggle) confirmHintsToggle.checked = settings.confirmHints;
+    if (playEnabledToggle) playEnabledToggle.checked = settings.playEnabled;
+    if (confirmEnabledToggle) confirmEnabledToggle.checked = settings.confirmEnabled;
+
+    // Show/hide sub-settings
+    if (subSettings) {
+        subSettings.classList.toggle('hidden', !settings.enabled);
+    }
+
+    // Master toggle handler
+    masterToggle.addEventListener('change', () => {
+        const newEnabled = masterToggle.checked;
+        if (subSettings) {
+            subSettings.classList.toggle('hidden', !newEnabled);
+        }
+        const current = getKeyboardSettings();
+        current.enabled = newEnabled;
+        saveKeyboardSettings(current);
+        updateButtonHints();
+    });
+
+    // Sub-toggle handlers
+    const subToggles = [
+        { el: playHintsToggle, key: 'playHints' },
+        { el: confirmHintsToggle, key: 'confirmHints' },
+        { el: playEnabledToggle, key: 'playEnabled' },
+        { el: confirmEnabledToggle, key: 'confirmEnabled' }
+    ];
+
+    subToggles.forEach(({ el, key }) => {
+        if (el) {
+            el.addEventListener('change', () => {
+                const current = getKeyboardSettings();
+                current[key] = el.checked;
+                saveKeyboardSettings(current);
+                updateButtonHints();
+            });
+        }
+    });
+
+    // Apply initial hints
+    updateButtonHints();
+}
+
+/**
+ * Update all button texts with/without keyboard shortcuts based on settings
+ */
+function updateButtonHints() {
+    const settings = getKeyboardSettings();
+
+    // Home page buttons
+    const toggleInspBtn = document.getElementById('toggleInspection');
+    const newScrambleBtn = document.getElementById('newScramble');
+    const startBtnEl = document.getElementById('startBtn');
+
+    // Popup buttons
+    const okBtn = document.getElementById('resultOK');
+    const plus2Btn = document.getElementById('resultPlus2');
+    const dnfBtn = document.getElementById('resultDNF');
+
+    // Show play hints only if enabled AND playHints is on
+    const showPlayHints = settings.enabled && settings.playHints;
+    // Show confirm hints only if enabled AND confirmHints is on
+    const showConfirmHints = settings.enabled && settings.confirmHints;
+
+    if (showPlayHints) {
+        if (toggleInspBtn) toggleInspBtn.textContent = '開始檢查 (I)';
+        if (newScrambleBtn) newScrambleBtn.textContent = '新亂序 (S)';
+        if (startBtnEl) startBtnEl.textContent = '開始/停止 (Space)';
+    } else {
+        if (toggleInspBtn) toggleInspBtn.textContent = '開始檢查';
+        if (newScrambleBtn) newScrambleBtn.textContent = '新亂序';
+        if (startBtnEl) startBtnEl.textContent = '開始/停止';
+    }
+
+    if (showConfirmHints) {
+        if (okBtn) okBtn.textContent = 'OK (O)';
+        if (plus2Btn) plus2Btn.textContent = '+2 (2)';
+        if (dnfBtn) dnfBtn.textContent = 'DNF (D)';
+    } else {
+        if (okBtn) okBtn.textContent = 'OK';
+        if (plus2Btn) plus2Btn.textContent = '+2';
+        if (dnfBtn) dnfBtn.textContent = 'DNF';
+    }
+}
+
+/**
+ * Check if play keyboard shortcuts are allowed
+ */
+function canUsePlayKeyboard() {
+    if (isInputFocused()) return false;
+    const settings = getKeyboardSettings();
+    return settings.enabled && settings.playEnabled;
+}
+
+/**
+ * Check if confirm keyboard shortcuts are allowed
+ */
+function canUseConfirmKeyboard() {
+    if (isInputFocused()) return false;
+    const settings = getKeyboardSettings();
+    return settings.enabled && settings.confirmEnabled;
+}
+
 // Init
 newScramble();
 renderStats();
+updateButtonHints();
+
+// Initialize keyboard settings when settings page is visited
+// This will be called by router when navigating to settings page
+window.initKeyboardSettings = initKeyboardSettings;
+
+// Also try to init on DOM ready (in case already on settings page)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initKeyboardSettings);
+} else {
+    initKeyboardSettings();
+}
