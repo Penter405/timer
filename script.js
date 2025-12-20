@@ -215,6 +215,10 @@ function endHold() {
 // --- 事件監聽 Event Listeners ---
 let spaceHeld = false;
 document.addEventListener('keydown', e => {
+    // Disable play keyboard when result popup is showing
+    const resultPopupVisible = resultPopup && !resultPopup.classList.contains('hidden');
+    if (resultPopupVisible) return;
+
     // Check if play keyboard shortcuts are allowed
     if (typeof canUsePlayKeyboard === 'function' && !canUsePlayKeyboard()) return;
 
