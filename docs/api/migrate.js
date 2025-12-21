@@ -1,5 +1,4 @@
 const { getCollections, connectToMongo } = require('../lib/mongoClient');
-const { encryptNickname } = require('../lib/encryption');
 const getSheetsClient = require('./sheetsClient');
 const {
     handleCORS,
@@ -155,7 +154,6 @@ module.exports = async (req, res) => {
                 email,
                 userID: parseInt(userID),
                 nickname,
-                encryptedNickname: nickname ? encryptNickname(nickname, userID) : '',  // Only encrypt if nickname exists
                 createdAt: new Date(),
                 updatedAt: new Date(),
                 migratedFrom: 'sheets',
