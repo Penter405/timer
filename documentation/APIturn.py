@@ -58,7 +58,16 @@ def cheak_api_use():
             print(f"{rs.name} api be used more than {rs.api_limit}")#ai should tell develop
             exit()
 #main
+def auto_set_new_name():
+    #a time, if user changed name during this time, we should auto set new name to google sheet
+    return "New name seted to google sheet"
+
+def read2():
+    #see google sheet
+    return "Data from google sheet"
+
 def read():
+    #read scoreboard and scoreboardunique ,only two allow
     what_user_want=[]
     web.call(cf,"O")
     front_end_called=cf
@@ -66,13 +75,16 @@ def read():
         web.call(vercel)
         front_end_called=vercel
 
+    back_end=mongo
     front_end_called.call(mongo,"O")
+    if "mongo full, cant read":
+        back_end=sheet 
     what_user_want.append(front_end_called.returnner)
     front_end_called.call(sheet,"O")
     what_user_want.append(front_end_called.returnner)
     return what_user_want
 def edit():
-    data_to_edit=[["email of scoreboard(which is google sheet sheet1)"],["other_data of scoreboard(which is google sheet sheet1)"]]
+    data_to_edit=[["scoreboard and scoreboardunique need"],["other need"]]
     web.call(cf,"I")
     front_end_called=cf
     if "cf fuck up(fuck up include api limit)":
