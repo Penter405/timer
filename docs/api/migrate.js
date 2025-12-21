@@ -1,4 +1,4 @@
-const { getCollections } = require('../lib/mongoClient');
+const { getCollections, connectToMongo } = require('../lib/mongoClient');
 const { encryptNickname } = require('../lib/encryption');
 const getSheetsClient = require('./sheetsClient');
 const {
