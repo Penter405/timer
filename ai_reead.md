@@ -371,7 +371,7 @@
 現在的 App Script:
 ```
 // --------- 設定 ---------
-const SHEET_ID = "***REMOVED***/edit?gid=0#gid=0";  // <-- 換成你的 Google Sheet ID
+const SHEET_ID = "YOUR_SHEET_ID_HERE";  // <-- 換成你的 Google Sheet ID
 const SHEET_NAME = "Sheet1";       // 工作表名稱
 
 // --------- GET API：讀取所有紀錄 ---------
