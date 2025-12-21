@@ -56,16 +56,25 @@ module.exports = async (req, res) => {
         const timeInSeconds = parseFloat((parseFloat(time) / 1000).toFixed(3));
 
         // === 3. Get or Create User in MongoDB ===
-        const { users, scores } = await getCollections();
+        const { db } = await connectToMongo();
+        const users = db.collection('users');
+        const scores = db.collection('scores');
+        const counts = db.collection('counts');
 
         let user = await users.findOne({ email });
 
         if (!user) {
-            // Auto-register user
+            // Auto-register user with atomic counter for userID
             console.log(`[SAVE_TIME] Auto-registering user: ${email}`);
 
-            const userCount = await users.countDocuments();
-            const userID = userCount + 1;
+            // Get next userID using atomic counter
+            const counterResult = await counts.findOneAndUpdate(
+                { _id: 'userID' },
+                { $inc: { count: 1 } },
+                { upsert: true, returnDocument: 'after' }
+            );
+
+            const userID = counterResult.value.count;
 
             user = {
                 email,
