@@ -97,37 +97,47 @@ module.exports = async (req, res) => {
             }
         }
 
-        // === 3. Read ALL periods and aggregate data for FrontEnd ===
+        // === 3. Read ALL 10 groups (5 periods × 2 sheets) for FrontEnd ===
         const allScores = [];
         const userIDsSet = new Set();
 
-        for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
-            const startColLetter = getColumnLetter(config.startCol);
-            const endColLetter = getColumnLetter(config.endCol);
+        // Read from both ScoreBoard and ScoreBoardUnique
+        const sheetNames = ['ScoreBoard', 'ScoreBoardUnique'];
 
-            const response = await sheets.spreadsheets.values.get({
-                spreadsheetId,
-                range: `ScoreBoard!${startColLetter}:${endColLetter}`
-            });
+        for (const sheetName of sheetNames) {
+            for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
+                const startColLetter = getColumnLetter(config.startCol);
+                const endColLetter = getColumnLetter(config.endCol);
 
-            const data = response.data.values || [];
-            for (const row of data) {
-                const userID = parseInt(row[0]);
-                if (!isNaN(userID) && row[1]) {
-                    allScores.push({
-                        userID,
-                        time: parseFloat(row[1]?.toString().replace(/^'/, '') || 'Infinity'),
-                        scramble: row[2] || '',
-                        date: row[3] || '',
-                        timestamp: row[4] || '',
-                        period: periodKey
+                try {
+                    const response = await sheets.spreadsheets.values.get({
+                        spreadsheetId,
+                        range: `${sheetName}!${startColLetter}:${endColLetter}`
                     });
-                    userIDsSet.add(userID);
+
+                    const data = response.data.values || [];
+                    for (const row of data) {
+                        const userID = parseInt(row[0]);
+                        if (!isNaN(userID) && row[1]) {
+                            allScores.push({
+                                userID,
+                                time: parseFloat(row[1]?.toString().replace(/^'/, '') || 'Infinity'),
+                                scramble: row[2] || '',
+                                date: row[3] || '',
+                                timestamp: row[4] || '',
+                                period: periodKey,
+                                source: sheetName
+                            });
+                            userIDsSet.add(userID);
+                        }
+                    }
+                } catch (err) {
+                    console.log(`[SYNC_SCORES] Could not read ${sheetName}/${periodKey}: ${err.message}`);
                 }
             }
         }
 
-        console.log(`[SYNC_SCORES] Aggregated ${allScores.length} total scores from all periods`);
+        console.log(`[SYNC_SCORES] Aggregated ${allScores.length} total scores from all 10 groups`);
 
         // === 4. Get user nicknames ===
         const allUserIDs = [...userIDsSet];
@@ -137,90 +147,133 @@ module.exports = async (req, res) => {
             userMap[user.userID] = user.nickname || `ID:${user.userID}`;
         }
 
-        // === 5. Deduplicate and sort for FrontEndScoreBoard ===
-        // Remove duplicates (same userID + time + date = same record across periods)
-        const uniqueScores = [];
-        const seenKeys = new Set();
-        for (const score of allScores) {
-            const key = `${score.userID}-${score.time}-${score.date}-${score.timestamp}`;
-            if (!seenKeys.has(key)) {
-                seenKeys.add(key);
-                uniqueScores.push(score);
+        // === 5. Update FrontEndScoreBoard for each period (5 periods × 5 columns = 25 columns) ===
+        // FrontEnd uses 5 columns per period: Nickname, Time, Scramble, Date, Timestamp
+        const FRONTEND_PERIOD_CONFIG = {
+            all: { startCol: 0 },   // A-E
+            year: { startCol: 5 },   // F-J
+            month: { startCol: 10 },  // K-O
+            week: { startCol: 15 },  // P-T
+            today: { startCol: 20 }   // U-Y
+        };
+
+        for (const [periodKey, frontConfig] of Object.entries(FRONTEND_PERIOD_CONFIG)) {
+            const sourceConfig = PERIOD_CONFIG[periodKey];
+            const startColLetter = getColumnLetter(sourceConfig.startCol);
+            const endColLetter = getColumnLetter(sourceConfig.endCol);
+
+            // Read from ScoreBoard for this period
+            try {
+                const response = await sheets.spreadsheets.values.get({
+                    spreadsheetId,
+                    range: `ScoreBoard!${startColLetter}:${endColLetter}`
+                });
+
+                const data = response.data.values || [];
+                const frontEndRows = data
+                    .filter(row => row[0] && row[1])
+                    .map(row => {
+                        const userID = parseInt(row[0]);
+                        const nickname = userMap[userID] || `ID:${userID}`;
+                        return [
+                            formatSheetValue(nickname),
+                            formatSheetValue(row[1]),  // time
+                            formatSheetValue(row[2]),  // scramble
+                            formatSheetValue(row[3]),  // date
+                            formatSheetValue(row[4])   // timestamp
+                        ];
+                    });
+
+                // Write to FrontEndScoreBoard for this period
+                const frontStartCol = getColumnLetter(frontConfig.startCol);
+                const frontEndCol = getColumnLetter(frontConfig.startCol + 4);
+
+                await sheets.spreadsheets.values.clear({
+                    spreadsheetId,
+                    range: `FrontEndScoreBoard!${frontStartCol}:${frontEndCol}`
+                });
+
+                if (frontEndRows.length > 0) {
+                    await sheets.spreadsheets.values.update({
+                        spreadsheetId,
+                        range: `FrontEndScoreBoard!${frontStartCol}1`,
+                        valueInputOption: 'USER_ENTERED',
+                        requestBody: { values: frontEndRows }
+                    });
+                }
+                console.log(`[SYNC_SCORES] Updated FrontEndScoreBoard/${periodKey} with ${frontEndRows.length} rows`);
+            } catch (err) {
+                console.log(`[SYNC_SCORES] Could not update FrontEndScoreBoard/${periodKey}: ${err.message}`);
             }
         }
 
-        // Sort by time (fastest first)
-        uniqueScores.sort((a, b) => a.time - b.time);
+        // === 6. Update FrontEndScoreBoardUnique for each period (5 periods × 4 columns = 20 columns) ===
+        const FRONTEND_UNIQUE_PERIOD_CONFIG = {
+            all: { startCol: 0 },   // A-D
+            year: { startCol: 4 },   // E-H
+            month: { startCol: 8 },   // I-L
+            week: { startCol: 12 },  // M-P
+            today: { startCol: 16 }   // Q-T
+        };
 
-        const frontEndData = uniqueScores.map(score => [
-            formatSheetValue(userMap[score.userID] || `ID:${score.userID}`),
-            formatSheetValue(score.time.toFixed(3)),
-            formatSheetValue(score.scramble),
-            formatSheetValue(score.date),
-            formatSheetValue(score.timestamp)
-        ]);
+        for (const [periodKey, frontConfig] of Object.entries(FRONTEND_UNIQUE_PERIOD_CONFIG)) {
+            const sourceConfig = PERIOD_CONFIG[periodKey];
+            const startColLetter = getColumnLetter(sourceConfig.startCol);
+            const endColLetter = getColumnLetter(sourceConfig.endCol);
 
-        // Clear and write FrontEndScoreBoard
-        await sheets.spreadsheets.values.clear({
-            spreadsheetId,
-            range: 'FrontEndScoreBoard!A:E'
-        });
-        if (frontEndData.length > 0) {
-            await sheets.spreadsheets.values.update({
-                spreadsheetId,
-                range: 'FrontEndScoreBoard!A1',
-                valueInputOption: 'USER_ENTERED',
-                requestBody: { values: frontEndData }
-            });
-        }
-        console.log(`[SYNC_SCORES] Updated FrontEndScoreBoard with ${frontEndData.length} rows`);
+            try {
+                // Read from ScoreBoardUnique for this period
+                const response = await sheets.spreadsheets.values.get({
+                    spreadsheetId,
+                    range: `ScoreBoardUnique!${startColLetter}:${endColLetter}`
+                });
 
-        // === 6. Build FrontEndScoreBoardUnique (best per user) ===
-        const bestByUser = {};
-        for (const score of uniqueScores) {
-            if (!bestByUser[score.userID] || score.time < bestByUser[score.userID].time) {
-                bestByUser[score.userID] = {
-                    nickname: userMap[score.userID] || `ID:${score.userID}`,
-                    time: score.time,
-                    date: score.date,
-                    timestamp: score.timestamp
-                };
+                const data = response.data.values || [];
+                const uniqueRows = data
+                    .filter(row => row[0] && row[1])
+                    .map(row => {
+                        const userID = parseInt(row[0]);
+                        const nickname = userMap[userID] || `ID:${userID}`;
+                        return [
+                            formatSheetValue(nickname),
+                            formatSheetValue(row[1]),  // time
+                            formatSheetValue(row[3]),  // date
+                            formatSheetValue(row[4])   // timestamp
+                        ];
+                    });
+
+                // Write to FrontEndScoreBoardUnique for this period
+                const frontStartCol = getColumnLetter(frontConfig.startCol);
+                const frontEndCol = getColumnLetter(frontConfig.startCol + 3);
+
+                await sheets.spreadsheets.values.clear({
+                    spreadsheetId,
+                    range: `FrontEndScoreBoardUnique!${frontStartCol}:${frontEndCol}`
+                });
+
+                if (uniqueRows.length > 0) {
+                    await sheets.spreadsheets.values.update({
+                        spreadsheetId,
+                        range: `FrontEndScoreBoardUnique!${frontStartCol}1`,
+                        valueInputOption: 'USER_ENTERED',
+                        requestBody: { values: uniqueRows }
+                    });
+                }
+                console.log(`[SYNC_SCORES] Updated FrontEndScoreBoardUnique/${periodKey} with ${uniqueRows.length} rows`);
+            } catch (err) {
+                console.log(`[SYNC_SCORES] Could not update FrontEndScoreBoardUnique/${periodKey}: ${err.message}`);
             }
         }
-
-        const uniqueData = Object.values(bestByUser)
-            .sort((a, b) => a.time - b.time)
-            .map(entry => [
-                formatSheetValue(entry.nickname),
-                formatSheetValue(entry.time.toFixed(3)),
-                formatSheetValue(entry.date),
-                formatSheetValue(entry.timestamp)
-            ]);
-
-        await sheets.spreadsheets.values.clear({
-            spreadsheetId,
-            range: 'FrontEndScoreBoardUnique!A:D'
-        });
-        if (uniqueData.length > 0) {
-            await sheets.spreadsheets.values.update({
-                spreadsheetId,
-                range: 'FrontEndScoreBoardUnique!A1',
-                valueInputOption: 'USER_ENTERED',
-                requestBody: { values: uniqueData }
-            });
-        }
-        console.log(`[SYNC_SCORES] Updated FrontEndScoreBoardUnique with ${uniqueData.length} rows`);
 
         // === 7. Delete synced pending scores ===
         const pendingIds = pending.map(s => s._id);
-        await pendingScores.deleteMany({ _id: { $in: pendingIds } });
+        if (pendingIds.length > 0) {
+            await pendingScores.deleteMany({ _id: { $in: pendingIds } });
+        }
 
         sendSuccess(res, {
             synced: pending.length,
-            totalScores: uniqueScores.length,
-            uniqueUsers: uniqueData.length,
-            deletedSlowRows: totalDeleted,
-            message: `Synced ${pending.length} scores. Total: ${uniqueScores.length}`
+            message: `Synced ${pending.length} scores, updated all 10 FrontEnd groups`
         });
 
     } catch (err) {
