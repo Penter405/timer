@@ -65,7 +65,7 @@ module.exports = async (req, res) => {
             if (email) {
                 totalData[userID] = {
                     email: email.trim(),
-                    nickname: nickname || `Player${userID}`
+                    nickname: nickname || ''
                 };
             }
         });
