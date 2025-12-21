@@ -207,13 +207,13 @@ module.exports = async (req, res) => {
             }
         }
 
-        // === 6. Update FrontEndScoreBoardUnique for each period (5 periods × 4 columns = 20 columns) ===
+        // === 6. Update FrontEndScoreBoardUnique for each period (5 periods × 5 columns = 25 columns) ===
         const FRONTEND_UNIQUE_PERIOD_CONFIG = {
-            all: { startCol: 0 },   // A-D
-            year: { startCol: 4 },   // E-H
-            month: { startCol: 8 },   // I-L
-            week: { startCol: 12 },  // M-P
-            today: { startCol: 16 }   // Q-T
+            all: { startCol: 0 },   // A-E
+            year: { startCol: 5 },   // F-J
+            month: { startCol: 10 },  // K-O
+            week: { startCol: 15 },  // P-T
+            today: { startCol: 20 }   // U-Y
         };
 
         for (const [periodKey, frontConfig] of Object.entries(FRONTEND_UNIQUE_PERIOD_CONFIG)) {
@@ -237,6 +237,7 @@ module.exports = async (req, res) => {
                         return [
                             formatSheetValue(nickname),
                             formatSheetValue(row[1]),  // time
+                            formatSheetValue(row[2]),  // scramble
                             formatSheetValue(row[3]),  // date
                             formatSheetValue(row[4])   // timestamp
                         ];
@@ -244,7 +245,7 @@ module.exports = async (req, res) => {
 
                 // Write to FrontEndScoreBoardUnique for this period
                 const frontStartCol = getColumnLetter(frontConfig.startCol);
-                const frontEndCol = getColumnLetter(frontConfig.startCol + 3);
+                const frontEndCol = getColumnLetter(frontConfig.startCol + 4);
 
                 await sheets.spreadsheets.values.clear({
                     spreadsheetId,
