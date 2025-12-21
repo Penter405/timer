@@ -4,8 +4,21 @@ const {
     handleCORS,
     sendError,
     sendSuccess,
-    formatSheetValue
+    formatSheetValue,
+    getColumnLetter
 } = require('../lib/apiUtils');
+
+/**
+ * Period column configuration (matching GAS)
+ * Each period uses 6 columns: UserID, Time, Scramble, Date, Time, Status
+ */
+const PERIOD_CONFIG = {
+    all: { startCol: 0, name: '歷史' },   // A-F (never cleared)
+    year: { startCol: 6, name: '本年' },   // G-L
+    month: { startCol: 12, name: '本月' },   // M-R
+    week: { startCol: 18, name: '本周' },   // S-X
+    today: { startCol: 24, name: '本日' }    // Y-AD
+};
 
 /**
  * Sync Scores API
@@ -14,10 +27,9 @@ const {
  * 
  * Flow:
  * 1. Read pending_scores from MongoDB
- * 2. Append to Google Sheets ScoreBoard (Google Sheets handles sorting)
- * 3. Read processed ScoreBoard data
- * 4. Copy to FrontEndScoreBoard/FrontEndScoreBoardUnique with ID→nickname
- * 5. Delete synced pending_scores
+ * 2. Write to ALL 5 periods in ScoreBoard (30 columns)
+ * 3. Read processed ScoreBoard (all period) and copy to FrontEnd sheets
+ * 4. Delete synced pending_scores
  */
 module.exports = async (req, res) => {
     if (handleCORS(req, res)) return;
@@ -47,27 +59,35 @@ module.exports = async (req, res) => {
             throw new Error('GOOGLE_SHEET_ID not configured');
         }
 
-        // Prepare ScoreBoard data (userID, time, scramble, date, timestamp, Verified)
-        const scoreBoardData = pending.map(score => [
-            formatSheetValue(score.userID),
-            formatSheetValue(score.time.toFixed(3)),
-            formatSheetValue(score.scramble),
-            formatSheetValue(score.date),
-            formatSheetValue(score.timestamp),
-            formatSheetValue('Verified')
-        ]);
+        // === 3. Write to ALL 5 periods in ScoreBoard ===
+        for (const score of pending) {
+            const rowData = [
+                formatSheetValue(score.userID),
+                formatSheetValue(score.time.toFixed(3)),
+                formatSheetValue(score.scramble),
+                formatSheetValue(score.date),
+                formatSheetValue(score.timestamp),
+                formatSheetValue('Verified')
+            ];
 
-        // === 3. Append to ScoreBoard ===
-        await sheets.spreadsheets.values.append({
-            spreadsheetId,
-            range: 'ScoreBoard!A:F',
-            valueInputOption: 'USER_ENTERED',
-            insertDataOption: 'INSERT_ROWS',
-            requestBody: { values: scoreBoardData }
-        });
-        console.log(`[SYNC_SCORES] Appended ${scoreBoardData.length} rows to ScoreBoard`);
+            // Build row for all 5 periods (30 columns)
+            const fullRowData = [];
+            for (const periodKey of ['all', 'year', 'month', 'week', 'today']) {
+                fullRowData.push(...rowData);
+            }
 
-        // === 4. Read ALL processed ScoreBoard data ===
+            // Append to ScoreBoard (A to AD, 30 columns)
+            await sheets.spreadsheets.values.append({
+                spreadsheetId,
+                range: 'ScoreBoard!A:AD',
+                valueInputOption: 'USER_ENTERED',
+                insertDataOption: 'INSERT_ROWS',
+                requestBody: { values: [fullRowData] }
+            });
+        }
+        console.log(`[SYNC_SCORES] Appended ${pending.length} rows to ScoreBoard (all 5 periods)`);
+
+        // === 4. Read ALL processed ScoreBoard data (all period: A-F) ===
         const scoreBoardRes = await sheets.spreadsheets.values.get({
             spreadsheetId,
             range: 'ScoreBoard!A:F'
@@ -101,18 +121,22 @@ module.exports = async (req, res) => {
             spreadsheetId,
             range: 'FrontEndScoreBoard!A:E'
         });
-        await sheets.spreadsheets.values.update({
-            spreadsheetId,
-            range: 'FrontEndScoreBoard!A1',
-            valueInputOption: 'USER_ENTERED',
-            requestBody: { values: frontEndData }
-        });
+        if (frontEndData.length > 0) {
+            await sheets.spreadsheets.values.update({
+                spreadsheetId,
+                range: 'FrontEndScoreBoard!A1',
+                valueInputOption: 'USER_ENTERED',
+                requestBody: { values: frontEndData }
+            });
+        }
         console.log(`[SYNC_SCORES] Updated FrontEndScoreBoard with ${frontEndData.length} rows`);
 
         // === 7. Build FrontEndScoreBoardUnique (best per user) ===
         const bestByUser = {};
         for (const row of allScoreData) {
             const userID = parseInt(row[0]);
+            if (isNaN(userID)) continue;
+
             const time = parseFloat(row[1]?.toString().replace(/^'/, '') || 'Infinity');
             const nickname = userMap[userID] || `ID:${userID}`;
 
@@ -138,12 +162,14 @@ module.exports = async (req, res) => {
             spreadsheetId,
             range: 'FrontEndScoreBoardUnique!A:D'
         });
-        await sheets.spreadsheets.values.update({
-            spreadsheetId,
-            range: 'FrontEndScoreBoardUnique!A1',
-            valueInputOption: 'USER_ENTERED',
-            requestBody: { values: uniqueData }
-        });
+        if (uniqueData.length > 0) {
+            await sheets.spreadsheets.values.update({
+                spreadsheetId,
+                range: 'FrontEndScoreBoardUnique!A1',
+                valueInputOption: 'USER_ENTERED',
+                requestBody: { values: uniqueData }
+            });
+        }
         console.log(`[SYNC_SCORES] Updated FrontEndScoreBoardUnique with ${uniqueData.length} rows`);
 
         // === 8. Delete synced pending scores ===
@@ -156,7 +182,7 @@ module.exports = async (req, res) => {
             synced: pending.length,
             totalScores: allScoreData.length,
             uniqueUsers: uniqueData.length,
-            message: `Synced ${pending.length} new scores. Total: ${allScoreData.length}, Unique users: ${uniqueData.length}`
+            message: `Synced ${pending.length} new scores to all 5 periods`
         });
 
     } catch (err) {
