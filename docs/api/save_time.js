@@ -1,5 +1,4 @@
-const { getCollections } = require('../lib/mongoClient');
-const { encryptNickname } = require('../lib/encryption');
+const { getCollections, connectToMongo } = require('../lib/mongoClient');
 const getSheetsClient = require('./sheetsClient');
 const {
     handleCORS,
@@ -79,7 +78,6 @@ module.exports = async (req, res) => {
                 email,
                 userID,
                 nickname: '',  // Empty until user sets nickname
-                encryptedNickname: '',
                 createdAt: new Date()
             };
 
@@ -129,7 +127,7 @@ module.exports = async (req, res) => {
 };
 
 /**
- * Sync score to Google Sheets (public scoreboard with encrypted nickname)
+ * Sync score to Google Sheets (public scoreboard with nickname)
  */
 async function syncToGoogleSheets(user, timeInSeconds, scramble, timestamp) {
     const sheets = getSheetsClient();
@@ -142,7 +140,7 @@ async function syncToGoogleSheets(user, timeInSeconds, scramble, timestamp) {
 
     const rowData = [
         formatSheetValue(user.userID),
-        formatSheetValue(user.encryptedNickname), // Encrypted nickname
+        formatSheetValue(user.nickname), // Plain nickname
         formatSheetValue(timeInSeconds.toFixed(3)),
         formatSheetValue(scramble),
         formatSheetValue(formatDate(timestamp)),
