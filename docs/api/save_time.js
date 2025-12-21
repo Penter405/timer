@@ -140,7 +140,6 @@ async function syncToGoogleSheets(user, timeInSeconds, scramble, timestamp) {
 
     const rowData = [
         formatSheetValue(user.userID),
-        formatSheetValue(user.nickname), // Plain nickname
         formatSheetValue(timeInSeconds.toFixed(3)),
         formatSheetValue(scramble),
         formatSheetValue(formatDate(timestamp)),
@@ -151,7 +150,7 @@ async function syncToGoogleSheets(user, timeInSeconds, scramble, timestamp) {
     // Write to "all" period (歷史)
     const config = PERIOD_CONFIG.all;
     const startColLetter = getColumnLetter(config.startCol);
-    const endColLetter = getColumnLetter(config.startCol + 6);
+    const endColLetter = getColumnLetter(config.startCol + 5);  // 6 columns now
     const range = `ScoreBoard!${startColLetter}:${endColLetter}`;
 
     // Get existing data
