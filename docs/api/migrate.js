@@ -130,9 +130,27 @@ module.exports = async (req, res) => {
                 continue;
             }
 
-            // Get nickname from Total or use uniqueName
-            const totalEntry = totalData[userID];
-            const nickname = totalEntry?.nickname || uniqueName || `Player${userID}`;
+            // Priority: UserMap UniqueName > Total Nickname > Default
+            let nickname;
+            let nicknameSource;
+
+            if (uniqueName && uniqueName.trim()) {
+                // UserMap has nickname (Priority!)
+                nickname = uniqueName.trim();
+                nicknameSource = 'UserMap';
+            } else {
+                // Fallback to Total
+                const totalEntry = totalData[userID];
+                if (totalEntry?.nickname && totalEntry.nickname.trim()) {
+                    nickname = totalEntry.nickname.trim();
+                    nicknameSource = 'Total';
+                } else {
+                    nickname = `Player${userID}`;
+                    nicknameSource = 'Default';
+                }
+            }
+
+            console.log(`[MIGRATE] User ${userID}: ${email} -> ${nickname} (from ${nicknameSource})`);
 
             const userDoc = {
                 email,
