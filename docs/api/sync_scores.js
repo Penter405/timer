@@ -15,23 +15,21 @@ const MAX_ROWS = 1000; // Maximum rows per period
  * Each period uses 6 columns: UserID, Time, Scramble, Date, Time, Status
  */
 const PERIOD_CONFIG = {
-    all: { startCol: 0, name: '歷史' },   // A-F (never cleared)
-    year: { startCol: 6, name: '本年' },   // G-L
-    month: { startCol: 12, name: '本月' },   // M-R
-    week: { startCol: 18, name: '本周' },   // S-X
-    today: { startCol: 24, name: '本日' }    // Y-AD
+    all: { startCol: 0, endCol: 5, name: '歷史' },   // A-F
+    year: { startCol: 6, endCol: 11, name: '本年' },   // G-L
+    month: { startCol: 12, endCol: 17, name: '本月' },   // M-R
+    week: { startCol: 18, endCol: 23, name: '本周' },   // S-X
+    today: { startCol: 24, endCol: 29, name: '本日' }    // Y-AD
 };
 
 /**
  * Sync Scores API
  * 
- * Called by external cron job (cron-job.org) every minute
- * 
  * Flow:
  * 1. Read pending_scores from MongoDB
- * 2. Write to ALL 5 periods in ScoreBoard (30 columns)
- * 3. Enforce 1000 row limit (delete slowest times)
- * 4. Read processed ScoreBoard and copy to FrontEnd sheets
+ * 2. For each period, find minimum empty row and write there
+ * 3. Enforce 1000 row limit per period
+ * 4. Read ALL periods and aggregate to FrontEnd sheets
  * 5. Delete synced pending_scores
  */
 module.exports = async (req, res) => {
@@ -40,7 +38,6 @@ module.exports = async (req, res) => {
     try {
         console.log('[SYNC_SCORES] Starting sync...');
 
-        // === 1. Get pending scores from MongoDB ===
         const { db } = await connectToMongo();
         const pendingScores = db.collection('pending_scores');
         const users = db.collection('users');
@@ -54,7 +51,6 @@ module.exports = async (req, res) => {
 
         console.log(`[SYNC_SCORES] Found ${pending.length} pending scores`);
 
-        // === 2. Sync to Google Sheets ===
         const sheets = getSheetsClient();
         const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
@@ -62,7 +58,7 @@ module.exports = async (req, res) => {
             throw new Error('GOOGLE_SHEET_ID not configured');
         }
 
-        // === 3. Write to ALL 5 periods in ScoreBoard ===
+        // === 1. Write to each period at its minimum empty row ===
         for (const score of pending) {
             const rowData = [
                 formatSheetValue(score.userID),
@@ -73,57 +69,97 @@ module.exports = async (req, res) => {
                 formatSheetValue('Verified')
             ];
 
-            // Build row for all 5 periods (30 columns)
-            const fullRowData = [];
-            for (const periodKey of ['all', 'year', 'month', 'week', 'today']) {
-                fullRowData.push(...rowData);
+            // Write to each period individually
+            for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
+                const startColLetter = getColumnLetter(config.startCol);
+                const endColLetter = getColumnLetter(config.endCol);
+
+                // Find next empty row for this period
+                const nextRow = await findNextEmptyRow(sheets, spreadsheetId, config.startCol);
+
+                // Write to that row
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId,
+                    range: `ScoreBoard!${startColLetter}${nextRow}:${endColLetter}${nextRow}`,
+                    valueInputOption: 'USER_ENTERED',
+                    requestBody: { values: [rowData] }
+                });
             }
+        }
+        console.log(`[SYNC_SCORES] Wrote ${pending.length} scores to all 5 periods`);
 
-            // Append to ScoreBoard (A to AD, 30 columns)
-            await sheets.spreadsheets.values.append({
+        // === 2. Enforce 1000 row limit per period ===
+        let totalDeleted = 0;
+        for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
+            const deleted = await enforceRowLimitForPeriod(sheets, spreadsheetId, config);
+            totalDeleted += deleted;
+            if (deleted > 0) {
+                console.log(`[SYNC_SCORES] Deleted ${deleted} slow rows from ${config.name}`);
+            }
+        }
+
+        // === 3. Read ALL periods and aggregate data for FrontEnd ===
+        const allScores = [];
+        const userIDsSet = new Set();
+
+        for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
+            const startColLetter = getColumnLetter(config.startCol);
+            const endColLetter = getColumnLetter(config.endCol);
+
+            const response = await sheets.spreadsheets.values.get({
                 spreadsheetId,
-                range: 'ScoreBoard!A:AD',
-                valueInputOption: 'USER_ENTERED',
-                insertDataOption: 'INSERT_ROWS',
-                requestBody: { values: [fullRowData] }
+                range: `ScoreBoard!${startColLetter}:${endColLetter}`
             });
+
+            const data = response.data.values || [];
+            for (const row of data) {
+                const userID = parseInt(row[0]);
+                if (!isNaN(userID) && row[1]) {
+                    allScores.push({
+                        userID,
+                        time: parseFloat(row[1]?.toString().replace(/^'/, '') || 'Infinity'),
+                        scramble: row[2] || '',
+                        date: row[3] || '',
+                        timestamp: row[4] || '',
+                        period: periodKey
+                    });
+                    userIDsSet.add(userID);
+                }
+            }
         }
-        console.log(`[SYNC_SCORES] Appended ${pending.length} rows to ScoreBoard (all 5 periods)`);
 
-        // === 4. Enforce 1000 row limit - delete slowest times ===
-        let deletedRows = await enforceRowLimit(sheets, spreadsheetId);
-        if (deletedRows > 0) {
-            console.log(`[SYNC_SCORES] Deleted ${deletedRows} slowest rows to maintain 1000 limit`);
-        }
+        console.log(`[SYNC_SCORES] Aggregated ${allScores.length} total scores from all periods`);
 
-        // === 5. Read ALL processed ScoreBoard data (all period: A-F) ===
-        const scoreBoardRes = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: 'ScoreBoard!A:F'
-        });
-        const allScoreData = scoreBoardRes.data.values || [];
-        console.log(`[SYNC_SCORES] Read ${allScoreData.length} rows from ScoreBoard`);
-
-        // === 6. Get ALL user nicknames from MongoDB ===
-        const allUserIDs = [...new Set(allScoreData.map(row => parseInt(row[0])).filter(id => !isNaN(id)))];
+        // === 4. Get user nicknames ===
+        const allUserIDs = [...userIDsSet];
         const allUsersData = await users.find({ userID: { $in: allUserIDs } }).toArray();
         const userMap = {};
         for (const user of allUsersData) {
             userMap[user.userID] = user.nickname || `ID:${user.userID}`;
         }
 
-        // === 7. Build FrontEndScoreBoard (all scores with nickname) ===
-        const frontEndData = allScoreData.map(row => {
-            const userID = parseInt(row[0]);
-            const nickname = userMap[userID] || `ID:${userID}`;
-            return [
-                formatSheetValue(nickname),
-                formatSheetValue(row[1]),
-                formatSheetValue(row[2]),
-                formatSheetValue(row[3]),
-                formatSheetValue(row[4])
-            ];
-        });
+        // === 5. Deduplicate and sort for FrontEndScoreBoard ===
+        // Remove duplicates (same userID + time + date = same record across periods)
+        const uniqueScores = [];
+        const seenKeys = new Set();
+        for (const score of allScores) {
+            const key = `${score.userID}-${score.time}-${score.date}-${score.timestamp}`;
+            if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                uniqueScores.push(score);
+            }
+        }
+
+        // Sort by time (fastest first)
+        uniqueScores.sort((a, b) => a.time - b.time);
+
+        const frontEndData = uniqueScores.map(score => [
+            formatSheetValue(userMap[score.userID] || `ID:${score.userID}`),
+            formatSheetValue(score.time.toFixed(3)),
+            formatSheetValue(score.scramble),
+            formatSheetValue(score.date),
+            formatSheetValue(score.timestamp)
+        ]);
 
         // Clear and write FrontEndScoreBoard
         await sheets.spreadsheets.values.clear({
@@ -140,33 +176,28 @@ module.exports = async (req, res) => {
         }
         console.log(`[SYNC_SCORES] Updated FrontEndScoreBoard with ${frontEndData.length} rows`);
 
-        // === 8. Build FrontEndScoreBoardUnique (best per user) ===
+        // === 6. Build FrontEndScoreBoardUnique (best per user) ===
         const bestByUser = {};
-        for (const row of allScoreData) {
-            const userID = parseInt(row[0]);
-            if (isNaN(userID)) continue;
-
-            const time = parseFloat(row[1]?.toString().replace(/^'/, '') || 'Infinity');
-            const nickname = userMap[userID] || `ID:${userID}`;
-
-            if (!bestByUser[userID] || time < bestByUser[userID].time) {
-                bestByUser[userID] = {
-                    nickname,
-                    time,
-                    date: row[3],
-                    timestamp: row[4]
+        for (const score of uniqueScores) {
+            if (!bestByUser[score.userID] || score.time < bestByUser[score.userID].time) {
+                bestByUser[score.userID] = {
+                    nickname: userMap[score.userID] || `ID:${score.userID}`,
+                    time: score.time,
+                    date: score.date,
+                    timestamp: score.timestamp
                 };
             }
         }
 
-        const uniqueData = Object.values(bestByUser).map(entry => [
-            formatSheetValue(entry.nickname),
-            formatSheetValue(entry.time.toFixed(3)),
-            formatSheetValue(entry.date),
-            formatSheetValue(entry.timestamp)
-        ]);
+        const uniqueData = Object.values(bestByUser)
+            .sort((a, b) => a.time - b.time)
+            .map(entry => [
+                formatSheetValue(entry.nickname),
+                formatSheetValue(entry.time.toFixed(3)),
+                formatSheetValue(entry.date),
+                formatSheetValue(entry.timestamp)
+            ]);
 
-        // Clear and write FrontEndScoreBoardUnique
         await sheets.spreadsheets.values.clear({
             spreadsheetId,
             range: 'FrontEndScoreBoardUnique!A:D'
@@ -181,18 +212,16 @@ module.exports = async (req, res) => {
         }
         console.log(`[SYNC_SCORES] Updated FrontEndScoreBoardUnique with ${uniqueData.length} rows`);
 
-        // === 9. Delete synced pending scores ===
+        // === 7. Delete synced pending scores ===
         const pendingIds = pending.map(s => s._id);
         await pendingScores.deleteMany({ _id: { $in: pendingIds } });
-        console.log(`[SYNC_SCORES] Deleted ${pendingIds.length} synced pending scores`);
 
-        // === 10. Return Success ===
         sendSuccess(res, {
             synced: pending.length,
-            totalScores: allScoreData.length,
+            totalScores: uniqueScores.length,
             uniqueUsers: uniqueData.length,
-            deletedSlowRows: deletedRows,
-            message: `Synced ${pending.length} new scores. Total: ${allScoreData.length}, Deleted slow: ${deletedRows}`
+            deletedSlowRows: totalDeleted,
+            message: `Synced ${pending.length} scores. Total: ${uniqueScores.length}`
         });
 
     } catch (err) {
@@ -202,68 +231,95 @@ module.exports = async (req, res) => {
 };
 
 /**
- * Enforce 1000 row limit by deleting slowest times
- * @returns {number} Number of deleted rows
+ * Find the next empty row for a specific period column
  */
-async function enforceRowLimit(sheets, spreadsheetId) {
-    // Get current data
+async function findNextEmptyRow(sheets, spreadsheetId, startCol) {
+    const colLetter = getColumnLetter(startCol);
+
     const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'ScoreBoard!A:F'
+        range: `ScoreBoard!${colLetter}:${colLetter}`
     });
 
     const data = response.data.values || [];
 
-    if (data.length <= MAX_ROWS) {
-        return 0; // No need to delete
+    // Find first empty row
+    for (let i = 0; i < data.length; i++) {
+        if (!data[i][0] || data[i][0] === '') {
+            return i + 1; // 1-indexed
+        }
     }
 
-    // Calculate how many rows to delete
-    const rowsToDelete = data.length - MAX_ROWS;
+    // If no empty row found, return next row after last
+    return data.length + 1;
+}
 
-    // Parse all rows with their times and original row numbers
-    const rowsWithTimes = data.map((row, idx) => ({
-        rowNumber: idx + 1, // 1-indexed
-        time: parseFloat(row[1]?.toString().replace(/^'/, '') || '0'),
+/**
+ * Enforce 1000 row limit for a specific period
+ */
+async function enforceRowLimitForPeriod(sheets, spreadsheetId, config) {
+    const startColLetter = getColumnLetter(config.startCol);
+    const endColLetter = getColumnLetter(config.endCol);
+
+    const response = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `ScoreBoard!${startColLetter}:${endColLetter}`
+    });
+
+    const data = response.data.values || [];
+
+    // Filter out empty rows
+    const validRows = data.map((row, idx) => ({
+        rowNumber: idx + 1,
+        time: parseFloat(row[1]?.toString().replace(/^'/, '') || 'Infinity'),
         data: row
-    })).filter(r => !isNaN(r.time));
+    })).filter(r => r.data[0] && !isNaN(r.time));
+
+    if (validRows.length <= MAX_ROWS) {
+        return 0;
+    }
+
+    const rowsToDelete = validRows.length - MAX_ROWS;
 
     // Sort by time descending (slowest first)
-    rowsWithTimes.sort((a, b) => b.time - a.time);
+    validRows.sort((a, b) => b.time - a.time);
 
-    // Get the slowest rows to delete
-    const rowsToRemove = rowsWithTimes.slice(0, rowsToDelete);
-
-    // Get the remaining rows (fastest)
-    const rowsToKeep = rowsWithTimes.slice(rowsToDelete);
-
-    // Sort remaining rows back by original order and rebuild all 5 periods
+    // Keep fastest 1000
+    const rowsToKeep = validRows.slice(rowsToDelete);
     rowsToKeep.sort((a, b) => a.rowNumber - b.rowNumber);
 
-    // Rebuild full data with all 5 periods
-    const newData = rowsToKeep.map(r => {
-        const rowData = r.data.slice(0, 6); // First 6 columns
-        const fullRow = [];
-        for (let i = 0; i < 5; i++) {
-            fullRow.push(...rowData);
-        }
-        return fullRow;
-    });
+    // Clear this period's columns
+    const sheetId = await getSheetId(sheets, spreadsheetId, 'ScoreBoard');
 
-    // Clear and rewrite entire ScoreBoard
+    // Clear all data in this period's columns
     await sheets.spreadsheets.values.clear({
         spreadsheetId,
-        range: 'ScoreBoard!A:AD'
+        range: `ScoreBoard!${startColLetter}:${endColLetter}`
     });
 
-    if (newData.length > 0) {
+    // Rewrite the kept rows
+    if (rowsToKeep.length > 0) {
+        const newData = rowsToKeep.map(r => r.data);
         await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: 'ScoreBoard!A1',
+            range: `ScoreBoard!${startColLetter}1:${endColLetter}${newData.length}`,
             valueInputOption: 'USER_ENTERED',
             requestBody: { values: newData }
         });
     }
 
     return rowsToDelete;
+}
+
+/**
+ * Get sheet ID by name
+ */
+async function getSheetId(sheets, spreadsheetId, sheetName) {
+    const response = await sheets.spreadsheets.get({
+        spreadsheetId,
+        fields: 'sheets.properties'
+    });
+
+    const sheet = response.data.sheets.find(s => s.properties.title === sheetName);
+    return sheet ? sheet.properties.sheetId : 0;
 }
