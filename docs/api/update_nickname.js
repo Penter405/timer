@@ -39,14 +39,15 @@ module.exports = async (req, res) => {
         const { db } = await connectToMongo();
         const users = db.collection('users');
         const counts = db.collection('counts');
+        const total = db.collection('total');
 
         // === 3. Check if user exists ===
         let user = await users.findOne({ email });
         let isNewUser = false;
 
         if (!user) {
-            // New user - get next userID using atomic counter
-            const counterResult = await counts.findOneAndUpdate(
+            // New user - get next userID from total collection
+            const counterResult = await total.findOneAndUpdate(
                 { _id: 'userID' },
                 { $inc: { count: 1 } },
                 { upsert: true, returnDocument: 'after' }
@@ -57,7 +58,7 @@ module.exports = async (req, res) => {
             user = {
                 email,
                 userID,
-                nickname: '',
+                nickname: '',  // Empty until user sets it
                 encryptedNickname: '',
                 createdAt: new Date(),
                 updatedAt: new Date()
@@ -68,17 +69,15 @@ module.exports = async (req, res) => {
             console.log(`[UPDATE_NICKNAME] New user registered: UserID ${userID}`);
         }
 
-        // === 4. Generate unique nickname using atomic counter ===
-        const nicknameKey = `nickname_${nickname}`;
-
+        // === 4. Generate unique nickname with #number (always) ===
         const nicknameCounter = await counts.findOneAndUpdate(
-            { _id: nicknameKey },
+            { _id: nickname },  // No prefix
             { $inc: { count: 1 } },
             { upsert: true, returnDocument: 'after' }
         );
 
-        const count = nicknameCounter.value.count;
-        const uniqueName = count === 1 ? nickname : `${nickname}#${count}`;
+        const number = nicknameCounter.value.count;
+        const uniqueName = `${nickname}#${number}`;  // Always has #number
         const encryptedNick = encryptNickname(uniqueName, user.userID);
 
         // === 5. Update MongoDB ===
