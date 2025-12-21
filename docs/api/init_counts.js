@@ -23,8 +23,9 @@ module.exports = async (req, res) => {
         const { db } = await connectToMongo();
         const users = db.collection('users');
         const counts = db.collection('counts');
+        const total = db.collection('total');
 
-        // === 1. Initialize userID counter ===
+        // === 1. Initialize userID counter in total collection ===
         const maxUserResult = await users.find()
             .sort({ userID: -1 })
             .limit(1)
@@ -33,7 +34,7 @@ module.exports = async (req, res) => {
         const maxUserID = maxUserResult[0]?.userID || 0;
         const nextUserID = maxUserID + 1;
 
-        await counts.updateOne(
+        await total.updateOne(
             { _id: 'userID' },
             { $set: { count: nextUserID } },
             { upsert: true }
@@ -41,32 +42,34 @@ module.exports = async (req, res) => {
 
         console.log(`[INIT_COUNTS] UserID counter set to: ${nextUserID}`);
 
-        // === 2. Initialize nickname counters ===
+        // === 2. Initialize nickname counters (Name#number format) ===
         const allUsers = await users.find({}).toArray();
         const nicknameCounts = {};
 
         for (const user of allUsers) {
             if (!user.nickname) continue;
 
-            // Extract base nickname (before #)
-            const match = user.nickname.match(/^(.+?)(#\d+)?$/);
-            const baseNickname = match ? match[1] : user.nickname;
+            // Parse Name#number format
+            const match = user.nickname.match(/^(.+?)#(\d+)$/);
+            if (match) {
+                const baseNickname = match[1];
+                const number = parseInt(match[2]);
 
-            // Extract number
-            const numberMatch = user.nickname.match(/#(\d+)$/);
-            const number = numberMatch ? parseInt(numberMatch[1]) : 1;
-
-            // Track max number for each base nickname
-            if (!nicknameCounts[baseNickname] || nicknameCounts[baseNickname] < number) {
-                nicknameCounts[baseNickname] = number;
+                // Track max number for each base nickname
+                if (!nicknameCounts[baseNickname] || nicknameCounts[baseNickname] < number) {
+                    nicknameCounts[baseNickname] = number;
+                }
+            } else {
+                // Old format without #number (shouldn't happen in new system)
+                console.warn(`[INIT_COUNTS] User ${user.userID} has old format nickname: ${user.nickname}`);
             }
         }
 
-        // Set counters
+        // Set counters in counts collection (no prefix)
         let nicknameCountersSet = 0;
         for (const [baseNickname, maxCount] of Object.entries(nicknameCounts)) {
             await counts.updateOne(
-                { _id: `nickname_${baseNickname}` },
+                { _id: baseNickname },  // No prefix - just the nickname
                 { $set: { count: maxCount } },
                 { upsert: true }
             );
@@ -76,16 +79,20 @@ module.exports = async (req, res) => {
         console.log(`[INIT_COUNTS] ${nicknameCountersSet} nickname counters initialized`);
 
         // === 3. Return summary ===
-        const finalCounters = await counts.find({}).toArray();
+        const finalTotalCounters = await total.find({}).toArray();
+        const finalNicknameCounters = await counts.find({}).toArray();
 
         sendSuccess(res, {
             success: true,
             counters: {
                 userID: nextUserID,
                 nicknameCountersSet,
-                totalCounters: finalCounters.length
+                totalCounters: finalTotalCounters.length + finalNicknameCounters.length
             },
-            details: finalCounters
+            collections: {
+                total: finalTotalCounters,
+                counts: finalNicknameCounters
+            }
         }, '計數器初始化完成');
 
     } catch (error) {

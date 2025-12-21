@@ -59,16 +59,15 @@ module.exports = async (req, res) => {
         const { db } = await connectToMongo();
         const users = db.collection('users');
         const scores = db.collection('scores');
-        const counts = db.collection('counts');
+        const total = db.collection('total');
 
         let user = await users.findOne({ email });
 
         if (!user) {
-            // Auto-register user with atomic counter for userID
+            // Auto-register user with userID from total collection
             console.log(`[SAVE_TIME] Auto-registering user: ${email}`);
 
-            // Get next userID using atomic counter
-            const counterResult = await counts.findOneAndUpdate(
+            const counterResult = await total.findOneAndUpdate(
                 { _id: 'userID' },
                 { $inc: { count: 1 } },
                 { upsert: true, returnDocument: 'after' }
@@ -79,8 +78,8 @@ module.exports = async (req, res) => {
             user = {
                 email,
                 userID,
-                nickname: `Player${userID}`,
-                encryptedNickname: encryptNickname(`Player${userID}`, userID),
+                nickname: '',  // Empty until user sets nickname
+                encryptedNickname: '',
                 createdAt: new Date()
             };
 
