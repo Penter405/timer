@@ -1,5 +1,4 @@
 const { connectToMongo } = require('../lib/mongoClient');
-const { encryptNickname } = require('../lib/encryption');
 const getSheetsClient = require('./sheetsClient');
 const {
     handleCORS,
@@ -59,7 +58,6 @@ module.exports = async (req, res) => {
                 email,
                 userID,
                 nickname: '',  // Empty until user sets it
-                encryptedNickname: '',
                 createdAt: new Date(),
                 updatedAt: new Date()
             };
@@ -78,7 +76,6 @@ module.exports = async (req, res) => {
 
         const number = nicknameCounter.value.count;
         const uniqueName = `${nickname}#${number}`;  // Always has #number
-        const encryptedNick = encryptNickname(uniqueName, user.userID);
 
         // === 5. Update MongoDB ===
         await users.updateOne(
@@ -86,7 +83,6 @@ module.exports = async (req, res) => {
             {
                 $set: {
                     nickname: uniqueName,
-                    encryptedNickname: encryptedNick,
                     updatedAt: new Date()
                 }
             }
@@ -96,7 +92,7 @@ module.exports = async (req, res) => {
 
         // === 6. Optional: Sync to Google Sheets ===
         try {
-            await syncNicknameToSheets(user.userID, uniqueName, encryptedNick);
+            await syncNicknameToSheets(user.userID, uniqueName);
         } catch (sheetError) {
             console.error(`[UPDATE_NICKNAME] Sheet sync failed (non-critical):`, sheetError.message);
         }
@@ -117,7 +113,7 @@ module.exports = async (req, res) => {
 /**
  * Sync nickname to Google Sheets Total sheet (optional)
  */
-async function syncNicknameToSheets(userID, uniqueName, encryptedNickname) {
+async function syncNicknameToSheets(userID, uniqueName) {
     const sheets = getSheetsClient();
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
