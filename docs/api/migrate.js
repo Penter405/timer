@@ -29,7 +29,8 @@ module.exports = async (req, res) => {
         console.log('[MIGRATE] Starting migration...');
 
         // Connect to MongoDB
-        const { users } = await getCollections();
+        const { db } = await connectToMongo();
+        const users = db.collection('users');
 
         // Connect to Google Sheets
         const sheets = getSheetsClient();
@@ -176,7 +177,6 @@ module.exports = async (req, res) => {
         }
 
         // Step 5: Create total collection with userID counter
-        const { db } = await getCollections();
         const total = db.collection('total');
         const counts = db.collection('counts');
 
