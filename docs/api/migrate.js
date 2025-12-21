@@ -130,9 +130,9 @@ module.exports = async (req, res) => {
                 continue;
             }
 
-            // Priority: UserMap UniqueName > Total Nickname > Default
-            let nickname;
-            let nicknameSource;
+            // Priority: UserMap UniqueName > Total Nickname > Empty
+            let nickname = '';
+            let nicknameSource = 'Empty';
 
             if (uniqueName && uniqueName.trim()) {
                 // UserMap has nickname (Priority!)
@@ -144,19 +144,17 @@ module.exports = async (req, res) => {
                 if (totalEntry?.nickname && totalEntry.nickname.trim()) {
                     nickname = totalEntry.nickname.trim();
                     nicknameSource = 'Total';
-                } else {
-                    nickname = `Player${userID}`;
-                    nicknameSource = 'Default';
                 }
+                // else: nickname remains empty string
             }
 
-            console.log(`[MIGRATE] User ${userID}: ${email} -> ${nickname} (from ${nicknameSource})`);
+            console.log(`[MIGRATE] User ${userID}: ${email} -> ${nickname || '(empty)'} (from ${nicknameSource})`);
 
             const userDoc = {
                 email,
                 userID: parseInt(userID),
                 nickname,
-                encryptedNickname: encryptNickname(nickname, userID),
+                encryptedNickname: nickname ? encryptNickname(nickname, userID) : '',  // Only encrypt if nickname exists
                 createdAt: new Date(),
                 updatedAt: new Date(),
                 migratedFrom: 'sheets',
