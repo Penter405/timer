@@ -1,35 +1,19 @@
-const { getCollections, connectToMongo } = require('../lib/mongoClient');
-const getSheetsClient = require('./sheetsClient');
+const { connectToMongo } = require('../lib/mongoClient');
 const {
     handleCORS,
     verifyGoogleToken,
     sendError,
     sendSuccess,
     formatDate,
-    formatTime,
-    formatSheetValue,
-    getColumnLetter
+    formatTime
 } = require('../lib/apiUtils');
 
-const MAX_ROWS_PER_PERIOD = 1000;
-
 /**
- * Period column configuration for Google Sheets
- */
-const PERIOD_CONFIG = {
-    all: { startCol: 0, name: '歷史' },
-    year: { startCol: 6, name: '本年' },
-    month: { startCol: 12, name: '本月' },
-    week: { startCol: 18, name: '本周' },
-    today: { startCol: 24, name: '本日' }
-};
-
-/**
- * Save Time API (MongoDB + Google Sheets Dual Architecture)
+ * Save Time API (MongoDB Buffer Only)
  * 
  * Data Strategy:
- * - MongoDB: Store sensitive user data (email) and all scores
- * - Google Sheets: Store public scoreboard with encrypted nicknames
+ * - Save to MongoDB pending_scores collection
+ * - External cron job syncs to Google Sheets every minute
  */
 module.exports = async (req, res) => {
     if (handleCORS(req, res)) return;
@@ -57,7 +41,7 @@ module.exports = async (req, res) => {
         // === 3. Get or Create User in MongoDB ===
         const { db } = await connectToMongo();
         const users = db.collection('users');
-        const scores = db.collection('scores');
+        const pendingScores = db.collection('pending_scores');
         const total = db.collection('total');
 
         let user = await users.findOne({ email });
@@ -85,39 +69,29 @@ module.exports = async (req, res) => {
             console.log(`[SAVE_TIME] Created user with ID: ${userID}`);
         }
 
-        // === 4. Save to MongoDB ===
+        // === 4. Save to MongoDB pending_scores ===
         const timestamp = date ? new Date(date) : new Date();
         const scoreDocument = {
             userID: user.userID,
-            email: user.email, // Store for reference
             time: timeInSeconds,
             scramble: scramble || '',
             date: formatDate(timestamp),
             timestamp: formatTime(timestamp),
-            period: 'all', // Can be enhanced with period logic
+            syncStatus: 'pending',  // Will be synced by cron job
             createdAt: timestamp
         };
 
-        await scores.insertOne(scoreDocument);
-        console.log(`[SAVE_TIME] Saved to MongoDB: UserID ${user.userID}, Time ${timeInSeconds}`);
+        await pendingScores.insertOne(scoreDocument);
+        console.log(`[SAVE_TIME] Saved to pending_scores: UserID ${user.userID}, Time ${timeInSeconds}`);
 
-        // === 5. Sync to Google Sheets (Background) ===
-        try {
-            await syncToGoogleSheets(user, timeInSeconds, scramble || '', timestamp);
-            console.log(`[SAVE_TIME] Synced to Google Sheets`);
-        } catch (sheetError) {
-            console.error(`[SAVE_TIME] Sheet sync failed (non-critical):`, sheetError.message);
-            // Don't fail the request, MongoDB save succeeded
-        }
-
-        // === 6. Return Success ===
+        // === 5. Return Success ===
         sendSuccess(res, {
             userID: user.userID,
             time: timeInSeconds.toFixed(3),
             scramble: scramble || '',
             date: formatDate(timestamp),
             timestamp: formatTime(timestamp),
-            storage: 'mongodb'
+            storage: 'pending'
         }, '成績已成功保存');
 
     } catch (err) {
@@ -125,74 +99,3 @@ module.exports = async (req, res) => {
         sendError(res, 500, err.message, '伺服器錯誤，請稍後再試');
     }
 };
-
-/**
- * Sync score to Google Sheets (public scoreboard with nickname)
- */
-async function syncToGoogleSheets(user, timeInSeconds, scramble, timestamp) {
-    const sheets = getSheetsClient();
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
-
-    if (!spreadsheetId) {
-        console.warn('[SAVE_TIME] No GOOGLE_SHEET_ID, skipping sheet sync');
-        return;
-    }
-
-    const rowData = [
-        formatSheetValue(user.userID),
-        formatSheetValue(timeInSeconds.toFixed(3)),
-        formatSheetValue(scramble),
-        formatSheetValue(formatDate(timestamp)),
-        formatSheetValue(formatTime(timestamp)),
-        formatSheetValue('Verified')
-    ];
-
-    // Write to "all" period (歷史)
-    const config = PERIOD_CONFIG.all;
-    const startColLetter = getColumnLetter(config.startCol);
-    const endColLetter = getColumnLetter(config.startCol + 5);  // 6 columns now
-    const range = `ScoreBoard!${startColLetter}:${endColLetter}`;
-
-    // Get existing data
-    const existingRes = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range
-    });
-
-    const existingData = existingRes.data.values || [];
-    const times = existingData.map((row, idx) => ({
-        rowIdx: idx,
-        time: parseFloat(row[2]?.toString().replace(/^'/, '') || 'NaN')
-    })).filter(t => !isNaN(t.time));
-
-    // Check 1000 row limit
-    if (times.length >= MAX_ROWS_PER_PERIOD) {
-        times.sort((a, b) => a.time - b.time);
-        const worstTime = times[times.length - 1].time;
-
-        if (timeInSeconds >= worstTime) {
-            console.log(`[SAVE_TIME] Sheet: Score not in top 1000, skipping`);
-            return;
-        }
-
-        // Replace worst score
-        const worstRowIdx = times[times.length - 1].rowIdx + 1;
-        await sheets.spreadsheets.values.update({
-            spreadsheetId,
-            range: `ScoreBoard!${startColLetter}${worstRowIdx}:${endColLetter}${worstRowIdx}`,
-            valueInputOption: 'USER_ENTERED',
-            requestBody: { values: [rowData] }
-        });
-        console.log(`[SAVE_TIME] Sheet: Replaced worst at row ${worstRowIdx}`);
-    } else {
-        // Append new row
-        const newRow = existingData.length + 1;
-        await sheets.spreadsheets.values.update({
-            spreadsheetId,
-            range: `ScoreBoard!${startColLetter}${newRow}:${endColLetter}${newRow}`,
-            valueInputOption: 'USER_ENTERED',
-            requestBody: { values: [rowData] }
-        });
-        console.log(`[SAVE_TIME] Sheet: Added at row ${newRow}`);
-    }
-}
