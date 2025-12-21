@@ -1,7 +1,6 @@
 const SHEET_ID = '1RlcaqvG1fiSXPhQBoidYVk3dwsi1bojO6Y9FnF1ZYoY';
-// Target 'ScoreBoard' sheet now
-const JSON_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=ScoreBoard`;
-const API_NICKNAMES_URL = 'https://timer-neon-two.vercel.app/api/get_nicknames'; // Vercel API
+// Target FrontEnd sheets (already have nicknames)
+const JSON_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=FrontEndScoreBoard`;
 
 // Default timezone is UK (Europe/London)
 const DEFAULT_TIMEZONE = 'Europe/London';
@@ -238,14 +237,14 @@ function escapeHtml(text) {
 
 /**
  * Period to column range mapping
- * Each period uses 6 columns: UserID, Time, Scramble, Date, Time, Status
+ * FrontEnd sheets: Each period uses 5 columns: Nickname, Time, Scramble, Date, Timestamp
  */
 const PERIOD_COLUMNS = {
-    all: { start: 'A', end: 'F' },      // 歷史 (A-F)
-    year: { start: 'G', end: 'L' },     // 本年 (G-L)
-    month: { start: 'M', end: 'R' },    // 本月 (M-R)
-    week: { start: 'S', end: 'X' },     // 本周 (S-X)
-    today: { start: 'Y', end: 'AD' }    // 本日 (Y-AD)
+    all: { start: 'A', end: 'E' },      // 歷史 (A-E)
+    year: { start: 'F', end: 'J' },     // 本年 (F-J)
+    month: { start: 'K', end: 'O' },    // 本月 (K-O)
+    week: { start: 'P', end: 'T' },     // 本周 (P-T)
+    today: { start: 'U', end: 'Y' }     // 本日 (U-Y)
 };
 
 /**
@@ -272,8 +271,8 @@ async function fetchLeaderboardWithFilters() {
     const uniqueOnly = uniqueToggle ? uniqueToggle.checked : false;
     const timezone = getSelectedTimezone();
 
-    // Determine sheet and columns
-    const sheetName = uniqueOnly ? 'ScoreBoardUnique' : 'ScoreBoard';
+    // Determine sheet and columns (FrontEnd sheets already have nicknames)
+    const sheetName = uniqueOnly ? 'FrontEndScoreBoardUnique' : 'FrontEndScoreBoard';
     const cols = PERIOD_COLUMNS[period] || PERIOD_COLUMNS.all;
 
     console.log(`[SCOREBOARD] Fetching: sheet=${sheetName}, period=${period}, cols=${cols.start}-${cols.end}, tz=${timezone}`);
@@ -297,7 +296,6 @@ async function fetchLeaderboardWithFilters() {
         }
 
         const rows = json.table.rows;
-        const idsToResolve = [];
 
         const getVal = (row, idx) => {
             const cell = row.c[idx];
@@ -310,36 +308,24 @@ async function fetchLeaderboardWithFilters() {
             const c = row.c;
             if (!c) return null;
 
-            const userId = getVal(row, 0);
-            if (userId) idsToResolve.push(userId);
-
+            // FrontEnd sheets: Nickname, Time, Scramble, Date, Timestamp (5 columns)
+            const nickname = getVal(row, 0);  // Already nickname, not userID
             let timeVal = getVal(row, 1);
             const time = parseFloat(timeVal);
 
             if (isNaN(time)) return null;
 
             return {
-                userId: userId,
+                nickname: nickname || 'Unknown',
                 time: time,
                 scramble: getVal(row, 2),
                 date: getVal(row, 3),
-                timeStr: getVal(row, 4),
-                status: getVal(row, 5)
+                timeStr: getVal(row, 4)
             };
         }).filter(item => item !== null);
 
-        // Resolve nicknames
-        const nicknameMap = await fetchNicknamesFromAPI(idsToResolve);
-
-        const times = rawData.map(item => {
-            let displayName = nicknameMap[item.userId];
-            if (!displayName) displayName = `ID:${item.userId}`;
-
-            return {
-                ...item,
-                nickname: displayName
-            };
-        });
+        // No need to resolve nicknames - already included in FrontEnd sheets
+        const times = rawData;
 
         // Sort by time (ascending)
         times.sort((a, b) => a.time - b.time);
