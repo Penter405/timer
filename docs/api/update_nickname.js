@@ -1,4 +1,4 @@
-const { getCollections } = require('../lib/mongoClient');
+const { connectToMongo } = require('../lib/mongoClient');
 const { encryptNickname } = require('../lib/encryption');
 const getSheetsClient = require('./sheetsClient');
 const {
@@ -9,11 +9,9 @@ const {
 } = require('../lib/apiUtils');
 
 /**
- * Update Nickname API (MongoDB Primary + Google Sheets Sync)
+ * Update Nickname API (MongoDB with Counts Collection)
  * 
- * Data Strategy:
- * - MongoDB: Store user email, nickname, and encrypted nickname
- * - Google Sheets: Optional sync for backup/compatibility
+ * Uses atomic counters to prevent nickname and userID collisions
  * 
  * Request Body:
  * - token: Google ID Token (required)
@@ -38,16 +36,23 @@ module.exports = async (req, res) => {
         console.log(`[UPDATE_NICKNAME] Processing for email: ${email}`);
 
         // === 2. Get MongoDB Collections ===
-        const { users } = await getCollections();
+        const { db } = await connectToMongo();
+        const users = db.collection('users');
+        const counts = db.collection('counts');
 
         // === 3. Check if user exists ===
         let user = await users.findOne({ email });
         let isNewUser = false;
 
         if (!user) {
-            // New user - auto-register
-            const userCount = await users.countDocuments();
-            const userID = userCount + 1;
+            // New user - get next userID using atomic counter
+            const counterResult = await counts.findOneAndUpdate(
+                { _id: 'userID' },
+                { $inc: { count: 1 } },
+                { upsert: true, returnDocument: 'after' }
+            );
+
+            const userID = counterResult.value.count;
 
             user = {
                 email,
@@ -63,22 +68,17 @@ module.exports = async (req, res) => {
             console.log(`[UPDATE_NICKNAME] New user registered: UserID ${userID}`);
         }
 
-        // === 4. Check nickname uniqueness and generate unique name ===
-        const nicknamePattern = new RegExp(`^${escapeRegex(nickname)}(#\\d+)?$`);
-        const existingUsers = await users.find({ nickname: nicknamePattern }).toArray();
+        // === 4. Generate unique nickname using atomic counter ===
+        const nicknameKey = `nickname_${nickname}`;
 
-        // Count existing users with same nickname
-        let maxNumber = 0;
-        for (const existingUser of existingUsers) {
-            const match = existingUser.nickname?.match(/#(\d+)$/);
-            if (match) {
-                maxNumber = Math.max(maxNumber, parseInt(match[1]));
-            } else if (existingUser.nickname === nickname) {
-                maxNumber = Math.max(maxNumber, 1);
-            }
-        }
+        const nicknameCounter = await counts.findOneAndUpdate(
+            { _id: nicknameKey },
+            { $inc: { count: 1 } },
+            { upsert: true, returnDocument: 'after' }
+        );
 
-        const uniqueName = maxNumber > 0 ? `${nickname}#${maxNumber + 1}` : nickname;
+        const count = nicknameCounter.value.count;
+        const uniqueName = count === 1 ? nickname : `${nickname}#${count}`;
         const encryptedNick = encryptNickname(uniqueName, user.userID);
 
         // === 5. Update MongoDB ===
@@ -116,13 +116,6 @@ module.exports = async (req, res) => {
 };
 
 /**
- * Escape regex special characters
- */
-function escapeRegex(str) {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-/**
  * Sync nickname to Google Sheets Total sheet (optional)
  */
 async function syncNicknameToSheets(userID, uniqueName, encryptedNickname) {
@@ -134,7 +127,6 @@ async function syncNicknameToSheets(userID, uniqueName, encryptedNickname) {
         return;
     }
 
-    // Update Total sheet Row = userID
     try {
         await sheets.spreadsheets.values.update({
             spreadsheetId,
