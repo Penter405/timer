@@ -1,5 +1,4 @@
 const { getCollections } = require('../lib/mongoClient');
-const { decryptNickname } = require('../lib/encryption');
 const {
     handleCORS,
     sendError,
@@ -47,8 +46,7 @@ module.exports = async (req, res) => {
 
         for (const user of usersData) {
             userMap[user.userID] = {
-                nickname: user.nickname || `Player${user.userID}`,
-                encryptedNickname: user.encryptedNickname
+                nickname: user.nickname || `Player${user.userID}`
             };
         }
 

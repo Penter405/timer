@@ -1,191 +1,26 @@
-timer:1  Uncaught HierarchyRequestError: Failed to execute 'insertBefore' on 'Node': The new child element contains the parent.
-    at $RV (timer:1:103594)
-fa0973884322e212.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:73 ▲    ____                               _ __   / __ \________  ____ _____ ___     (_) /_  / / / / ___/ _ \/ __ `/ __ `__ \   / / __/ / /_/ / /  /  __/ /_/ / / / / / /  / / /__/_____/_/   \___/\__,_/_/ /_/ /_/  /_/\__( )   _____ __    _          _ __           |/  / ___// /_  (_)___     (_) /_  \__ \/ __ \/ / __ \   / / __/ ___/ / / / / / /_/ /  / / /_/____/_/ /_/_/ .___/  /_/\__/            /_/  Hello!- Open Source https://vercel.com/oss- Careers https://vercel.com/careers- Status https://vercel-status.com
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-Tracking Prevention blocked access to storage for <URL>.
-fa0973884322e212.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:73  Uncaught Error: Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
-    at rJ (fa0973884322e212.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:73:46978)
-    at is (fa0973884322e212.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:73:90997)
-    at ik (fa0973884322e212.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:73:100882)
-    at sA (fa0973884322e212.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:73:140377)
-    at fa0973884322e212.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:73:135223
-    at sN (fa0973884322e212.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:73:135324)
-    at cu (fa0973884322e212.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:73:169840)
-    at MessagePort.T (fa0973884322e212.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:73:8527)
-434ca18243670ae6.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:19  Deprecated API for given entry type.
-(匿名) @ 434ca18243670ae6.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:19
-o205439.ingest.sentry.io/api/1323670/envelope/?sentry_key=d00780d432ac4ccf882f60dd02062e14&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.111.0:1   Failed to load resource: the server responded with a status of 429 ()
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-content.js:534  Unable to check top-level optout: Failed to read a named property 'document' from 'Window': Blocked a frame with origin "https://js.stripe.com" from accessing a cross-origin frame.
+content.js:534  Unable to check top-level optout: Failed to read a named property 'document' from 'Window': Blocked a frame with origin "https://accounts.google.com" from accessing a cross-origin frame.
 checkPageOptout @ content.js:534
-content.js:534  Unable to check top-level optout: Failed to read a named property 'document' from 'Window': Blocked a frame with origin "https://m.stripe.network" from accessing a cross-origin frame.
-checkPageOptout @ content.js:534
-[Violation]'setTimeout' handler 耗費 <N> 毫秒
-[Violation]'setTimeout' handler 耗費 <N> 毫秒
-[Violation]'setTimeout' handler 耗費 <N> 毫秒
-[Violation]'setTimeout' handler 耗費 <N> 毫秒
-[Violation]'setTimeout' handler 耗費 <N> 毫秒
-[Violation]Forced reflow while executing JavaScript took 52ms
+favicon.ico:1   Failed to load resource: the server responded with a status of 404 ()
 fetch('https://timer-neon-two.vercel.app/api/migrate')
   .then(res => res.json())
-  .then(data => console.log('遷移結果:', data));
+  .then(data => {
+    console.log('✅ 遷移完成！', data);
+    console.log('\n📊 摘要:');
+    console.log('- 新增用戶:', data.data.report.newUsers);
+    console.log('- MongoDB 總用戶:', data.data.report.finalMongoDBUsers);
+    console.log('- Total 已創建:', data.data.report.totalCollectionCreated);
+    console.log('- Counts 已創建:', data.data.report.countsCollectionCreated);
+    console.log('- 暱稱計數器:', data.data.report.nicknameCounters);
+  });
+
 Promise {<pending>}
-timer:1  Access to fetch at 'https://timer-neon-two.vercel.app/api/migrate' from origin 'https://vercel.com' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-timer:1   GET https://timer-neon-two.vercel.app/api/migrate net::ERR_FAILED 200 (OK)
-window.fetch @ timer:1
-(匿名) @ 434ca18243670ae6.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:17
-(匿名) @ VM589:1
-timer:1    Uncaught (in promise) TypeError: Failed to fetch
-    at window.fetch (timer:1:20509)
-    at 434ca18243670ae6.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:17:10675
-    at <anonymous>:1:1
-window.fetch @ timer:1
-(匿名) @ 434ca18243670ae6.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:17
-(匿名) @ VM589:1
-434ca18243670ae6.js?dpl=dpl_2bEDGoGpp31obxT5PMKMU2hxWwhq:17 [Violation]'setInterval' handler took 63ms
+VM54:1   GET https://timer-neon-two.vercel.app/api/migrate 500 (Internal Server Error)
+(匿名) @ VM54:1
+VM54:4 ✅ 遷移完成！ {success: false, error: "Cannot read properties of undefined (reading 'collection')", details: '遷移失敗'}
+VM54:5 
+📊 摘要:
+VM54:6  Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'report')
+    at <anonymous>:6:38
+(匿名) @ VM54:6
+Promise.then
+(匿名) @ VM54:3
