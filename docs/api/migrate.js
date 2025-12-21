@@ -175,7 +175,54 @@ module.exports = async (req, res) => {
             console.log('[MIGRATE] No new users to insert');
         }
 
-        // Step 5: Get final statistics
+        // Step 5: Create total collection with userID counter
+        const { db } = await getCollections();
+        const total = db.collection('total');
+        const counts = db.collection('counts');
+
+        const allUsers = await users.find({}).toArray();
+        const maxUserID = Math.max(...allUsers.map(u => u.userID), 0);
+        const nextUserID = maxUserID + 1;
+
+        await total.updateOne(
+            { _id: 'userID' },
+            { $set: { count: nextUserID } },
+            { upsert: true }
+        );
+
+        console.log(`[MIGRATE] Created total collection: userID counter = ${nextUserID}`);
+
+        // Step 6: Create counts collection with nickname counters
+        const nicknameCounts = {};
+
+        for (const user of allUsers) {
+            if (!user.nickname) continue;
+
+            // Parse Name#number format
+            const match = user.nickname.match(/^(.+?)#(\d+)$/);
+            if (match) {
+                const baseNickname = match[1];
+                const number = parseInt(match[2]);
+
+                if (!nicknameCounts[baseNickname] || nicknameCounts[baseNickname] < number) {
+                    nicknameCounts[baseNickname] = number;
+                }
+            }
+        }
+
+        let nicknameCountersSet = 0;
+        for (const [baseNickname, maxCount] of Object.entries(nicknameCounts)) {
+            await counts.updateOne(
+                { _id: baseNickname },
+                { $set: { count: maxCount } },
+                { upsert: true }
+            );
+            nicknameCountersSet++;
+        }
+
+        console.log(`[MIGRATE] Created counts collection: ${nicknameCountersSet} nickname counters`);
+
+        // Step 7: Get final statistics
         const finalCount = await users.countDocuments({});
 
         console.log('[MIGRATE] Migration completed successfully');
@@ -184,7 +231,10 @@ module.exports = async (req, res) => {
             success: true,
             report: {
                 ...report,
-                finalMongoDBUsers: finalCount
+                finalMongoDBUsers: finalCount,
+                totalCollectionCreated: true,
+                countsCollectionCreated: true,
+                nicknameCounters: nicknameCountersSet
             },
             message: `Migration completed: ${report.newUsers} new users added, ${report.existingUsers} already existed`
         });
