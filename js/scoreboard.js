@@ -1,4 +1,4 @@
-const SHEET_ID = '***REMOVED***';
+const SHEET_ID = '1RlcaqvG1fiSXPhQBoidYVk3dwsi1bojO6Y9FnF1ZYoY';
 // Target 'ScoreBoard' sheet now
 const JSON_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=ScoreBoard`;
 const API_NICKNAMES_URL = 'https://timer-neon-two.vercel.app/api/get_nicknames'; // Vercel API

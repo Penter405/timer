@@ -17,8 +17,8 @@ try {
 
 // 2. Load Sheet ID
 // Try from .env or fallback to hardcoded (User provided URL previously)
-// URL: https://docs.google.com/spreadsheets/d/***REMOVED***/edit
-const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID || '***REMOVED***';
+// URL: https://docs.google.com/spreadsheets/d/1RlcaqvG1fiSXPhQBoidYVk3dwsi1bojO6Y9FnF1ZYoY/edit
+const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID || '1RlcaqvG1fiSXPhQBoidYVk3dwsi1bojO6Y9FnF1ZYoY';
 console.log(`ℹ️ Using Spreadsheet ID: ${SPREADSHEET_ID}`);
 
 async function testWrite() {
