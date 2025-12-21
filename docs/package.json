@@ -5,6 +5,8 @@
   "dependencies": {
     "googleapis": "^126.0.1",
     "google-auth-library": "^9.0.0",
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "mongodb": "^6.3.0",
+    "dotenv": "^16.3.1"
   }
 }
