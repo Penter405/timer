@@ -45,11 +45,10 @@ module.exports = async (req, res) => {
         const pending = await pendingScores.find({ syncStatus: 'pending' }).toArray();
 
         if (pending.length === 0) {
-            console.log('[SYNC_SCORES] No pending scores to sync');
-            return sendSuccess(res, { synced: 0, message: 'No pending scores' });
+            console.log('[SYNC_SCORES] No pending scores, will still refresh FrontEnd sheets');
+        } else {
+            console.log(`[SYNC_SCORES] Found ${pending.length} pending scores`);
         }
-
-        console.log(`[SYNC_SCORES] Found ${pending.length} pending scores`);
 
         const sheets = getSheetsClient();
         const spreadsheetId = process.env.GOOGLE_SHEET_ID;
