@@ -4,8 +4,7 @@ const {
     handleCORS,
     sendError,
     sendSuccess,
-    formatSheetValue,
-    getColumnLetter
+    formatSheetValue
 } = require('../lib/apiUtils');
 
 /**
@@ -13,11 +12,12 @@ const {
  * 
  * Called by external cron job (cron-job.org) every minute
  * 
- * Steps:
+ * Flow:
  * 1. Read pending_scores from MongoDB
- * 2. Sync to Google Sheets ScoreBoard
- * 3. Update FrontEndScoreBoard and FrontEndScoreBoardUnique
- * 4. Delete synced pending_scores
+ * 2. Append to Google Sheets ScoreBoard (Google Sheets handles sorting)
+ * 3. Read processed ScoreBoard data
+ * 4. Copy to FrontEndScoreBoard/FrontEndScoreBoardUnique with ID→nickname
+ * 5. Delete synced pending_scores
  */
 module.exports = async (req, res) => {
     if (handleCORS(req, res)) return;
@@ -39,15 +39,7 @@ module.exports = async (req, res) => {
 
         console.log(`[SYNC_SCORES] Found ${pending.length} pending scores`);
 
-        // === 2. Get user nicknames ===
-        const userIDs = [...new Set(pending.map(s => s.userID))];
-        const usersData = await users.find({ userID: { $in: userIDs } }).toArray();
-        const userMap = {};
-        for (const user of usersData) {
-            userMap[user.userID] = user.nickname || `ID:${user.userID}`;
-        }
-
-        // === 3. Sync to Google Sheets ===
+        // === 2. Sync to Google Sheets ===
         const sheets = getSheetsClient();
         const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
@@ -65,16 +57,7 @@ module.exports = async (req, res) => {
             formatSheetValue('Verified')
         ]);
 
-        // Prepare FrontEnd data (nickname, time, scramble, date, timestamp)
-        const frontEndData = pending.map(score => [
-            formatSheetValue(userMap[score.userID]),
-            formatSheetValue(score.time.toFixed(3)),
-            formatSheetValue(score.scramble),
-            formatSheetValue(score.date),
-            formatSheetValue(score.timestamp)
-        ]);
-
-        // === 4. Append to ScoreBoard ===
+        // === 3. Append to ScoreBoard ===
         await sheets.spreadsheets.values.append({
             spreadsheetId,
             range: 'ScoreBoard!A:F',
@@ -84,28 +67,96 @@ module.exports = async (req, res) => {
         });
         console.log(`[SYNC_SCORES] Appended ${scoreBoardData.length} rows to ScoreBoard`);
 
-        // === 5. Append to FrontEndScoreBoard ===
-        await sheets.spreadsheets.values.append({
+        // === 4. Read ALL processed ScoreBoard data ===
+        const scoreBoardRes = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: 'FrontEndScoreBoard!A:E',
+            range: 'ScoreBoard!A:F'
+        });
+        const allScoreData = scoreBoardRes.data.values || [];
+        console.log(`[SYNC_SCORES] Read ${allScoreData.length} rows from ScoreBoard`);
+
+        // === 5. Get ALL user nicknames from MongoDB ===
+        const allUserIDs = [...new Set(allScoreData.map(row => parseInt(row[0])).filter(id => !isNaN(id)))];
+        const allUsersData = await users.find({ userID: { $in: allUserIDs } }).toArray();
+        const userMap = {};
+        for (const user of allUsersData) {
+            userMap[user.userID] = user.nickname || `ID:${user.userID}`;
+        }
+
+        // === 6. Build FrontEndScoreBoard (all scores with nickname) ===
+        const frontEndData = allScoreData.map(row => {
+            const userID = parseInt(row[0]);
+            const nickname = userMap[userID] || `ID:${userID}`;
+            return [
+                formatSheetValue(nickname),      // nickname instead of userID
+                formatSheetValue(row[1]),        // time
+                formatSheetValue(row[2]),        // scramble
+                formatSheetValue(row[3]),        // date
+                formatSheetValue(row[4])         // timestamp
+            ];
+        });
+
+        // Clear and write FrontEndScoreBoard
+        await sheets.spreadsheets.values.clear({
+            spreadsheetId,
+            range: 'FrontEndScoreBoard!A:E'
+        });
+        await sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: 'FrontEndScoreBoard!A1',
             valueInputOption: 'USER_ENTERED',
-            insertDataOption: 'INSERT_ROWS',
             requestBody: { values: frontEndData }
         });
-        console.log(`[SYNC_SCORES] Appended ${frontEndData.length} rows to FrontEndScoreBoard`);
+        console.log(`[SYNC_SCORES] Updated FrontEndScoreBoard with ${frontEndData.length} rows`);
 
-        // === 6. Update FrontEndScoreBoardUnique (best per user) ===
-        await updateUniqueScoreBoard(sheets, spreadsheetId, pending, userMap);
+        // === 7. Build FrontEndScoreBoardUnique (best per user) ===
+        const bestByUser = {};
+        for (const row of allScoreData) {
+            const userID = parseInt(row[0]);
+            const time = parseFloat(row[1]?.toString().replace(/^'/, '') || 'Infinity');
+            const nickname = userMap[userID] || `ID:${userID}`;
 
-        // === 7. Delete synced pending scores ===
+            if (!bestByUser[userID] || time < bestByUser[userID].time) {
+                bestByUser[userID] = {
+                    nickname,
+                    time,
+                    date: row[3],
+                    timestamp: row[4]
+                };
+            }
+        }
+
+        const uniqueData = Object.values(bestByUser).map(entry => [
+            formatSheetValue(entry.nickname),
+            formatSheetValue(entry.time.toFixed(3)),
+            formatSheetValue(entry.date),
+            formatSheetValue(entry.timestamp)
+        ]);
+
+        // Clear and write FrontEndScoreBoardUnique
+        await sheets.spreadsheets.values.clear({
+            spreadsheetId,
+            range: 'FrontEndScoreBoardUnique!A:D'
+        });
+        await sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: 'FrontEndScoreBoardUnique!A1',
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: uniqueData }
+        });
+        console.log(`[SYNC_SCORES] Updated FrontEndScoreBoardUnique with ${uniqueData.length} rows`);
+
+        // === 8. Delete synced pending scores ===
         const pendingIds = pending.map(s => s._id);
         await pendingScores.deleteMany({ _id: { $in: pendingIds } });
         console.log(`[SYNC_SCORES] Deleted ${pendingIds.length} synced pending scores`);
 
-        // === 8. Return Success ===
+        // === 9. Return Success ===
         sendSuccess(res, {
             synced: pending.length,
-            message: `Successfully synced ${pending.length} scores`
+            totalScores: allScoreData.length,
+            uniqueUsers: uniqueData.length,
+            message: `Synced ${pending.length} new scores. Total: ${allScoreData.length}, Unique users: ${uniqueData.length}`
         });
 
     } catch (err) {
@@ -113,79 +164,3 @@ module.exports = async (req, res) => {
         sendError(res, 500, err.message, '同步失敗');
     }
 };
-
-/**
- * Update FrontEndScoreBoardUnique with best time per user
- */
-async function updateUniqueScoreBoard(sheets, spreadsheetId, newScores, userMap) {
-    try {
-        // Get existing unique scores
-        const existingRes = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: 'FrontEndScoreBoardUnique!A:D'
-        });
-
-        const existingData = existingRes.data.values || [];
-
-        // Build map of existing best times { nickname: { time, row, data } }
-        const bestTimes = {};
-        existingData.forEach((row, idx) => {
-            const nickname = row[0];
-            const time = parseFloat(row[1]?.toString().replace(/^'/, '') || 'Infinity');
-            if (nickname && !isNaN(time)) {
-                bestTimes[nickname] = { time, row: idx + 1, data: row };
-            }
-        });
-
-        // Process new scores
-        const updates = [];
-        const appends = [];
-
-        for (const score of newScores) {
-            const nickname = userMap[score.userID];
-            const newTime = score.time;
-
-            if (bestTimes[nickname]) {
-                // User exists, check if new time is better
-                if (newTime < bestTimes[nickname].time) {
-                    updates.push({
-                        row: bestTimes[nickname].row,
-                        data: [nickname, score.time.toFixed(3), score.date, score.timestamp]
-                    });
-                    bestTimes[nickname].time = newTime;
-                }
-            } else {
-                // New user
-                appends.push([nickname, score.time.toFixed(3), score.date, score.timestamp]);
-                bestTimes[nickname] = { time: newTime };
-            }
-        }
-
-        // Apply updates
-        for (const update of updates) {
-            await sheets.spreadsheets.values.update({
-                spreadsheetId,
-                range: `FrontEndScoreBoardUnique!A${update.row}:D${update.row}`,
-                valueInputOption: 'USER_ENTERED',
-                requestBody: { values: [update.data] }
-            });
-        }
-
-        // Apply appends
-        if (appends.length > 0) {
-            await sheets.spreadsheets.values.append({
-                spreadsheetId,
-                range: 'FrontEndScoreBoardUnique!A:D',
-                valueInputOption: 'USER_ENTERED',
-                insertDataOption: 'INSERT_ROWS',
-                requestBody: { values: appends }
-            });
-        }
-
-        console.log(`[SYNC_SCORES] Unique: ${updates.length} updates, ${appends.length} new users`);
-
-    } catch (error) {
-        console.error('[SYNC_SCORES] Unique update error:', error.message);
-        // Non-critical, continue
-    }
-}
