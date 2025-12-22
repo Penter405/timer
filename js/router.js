@@ -97,13 +97,19 @@ window.updateNavBar = function () {
 
     if (window.loggedIn) {
         logoutBtn?.classList.remove('hidden');
-        // Hide Google button, show parallelogram
-        if (googleBtn) googleBtn.style.display = 'none';
+        // Hide Google button and disable clicks, show parallelogram
+        if (googleBtn) {
+            googleBtn.style.display = 'none';
+            googleBtn.style.pointerEvents = 'none';
+        }
         parallelogramBtn?.classList.remove('hidden');
     } else {
         logoutBtn?.classList.add('hidden');
-        // Show Google button, hide parallelogram
-        if (googleBtn) googleBtn.style.display = '';
+        // Show Google button and enable clicks, hide parallelogram
+        if (googleBtn) {
+            googleBtn.style.display = '';
+            googleBtn.style.pointerEvents = '';
+        }
         parallelogramBtn?.classList.add('hidden');
     }
 }
