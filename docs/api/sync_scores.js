@@ -87,7 +87,14 @@ module.exports = async (req, res) => {
         }
         console.log(`[SYNC_SCORES] Wrote ${pending.length} scores to all 5 periods`);
 
-        // === 2. Enforce 1000 row limit per period ===
+        // === 2. Update ScoreBoardUnique for each period ===
+        // For each period, read all scores, keep only best per user, rewrite
+        for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
+            await updateScoreBoardUnique(sheets, spreadsheetId, config, periodKey);
+        }
+        console.log('[SYNC_SCORES] Updated ScoreBoardUnique for all periods');
+
+        // === 3. Enforce 1000 row limit per period ===
         let totalDeleted = 0;
         for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
             const deleted = await enforceRowLimitForPeriod(sheets, spreadsheetId, config);
@@ -375,4 +382,65 @@ async function getSheetId(sheets, spreadsheetId, sheetName) {
 
     const sheet = response.data.sheets.find(s => s.properties.title === sheetName);
     return sheet ? sheet.properties.sheetId : 0;
+}
+
+/**
+ * Update ScoreBoardUnique for a specific period
+ * Reads from ScoreBoard, keeps only best time per user, writes to ScoreBoardUnique
+ */
+async function updateScoreBoardUnique(sheets, spreadsheetId, config, periodKey) {
+    const startColLetter = getColumnLetter(config.startCol);
+    const endColLetter = getColumnLetter(config.endCol);
+
+    try {
+        // Read all scores from ScoreBoard for this period
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: `ScoreBoard!${startColLetter}:${endColLetter}`
+        });
+
+        const data = response.data.values || [];
+
+        // Group by userID and keep only best (fastest) time
+        const userBest = {};
+        for (const row of data) {
+            const userID = parseInt(row[0]);
+            const time = parseFloat(row[1]?.toString().replace(/^'/, '') || 'Infinity');
+
+            if (!isNaN(userID) && !isNaN(time)) {
+                if (!userBest[userID] || time < userBest[userID].time) {
+                    userBest[userID] = {
+                        time,
+                        row: row
+                    };
+                }
+            }
+        }
+
+        // Convert to array and sort by time (fastest first)
+        const uniqueRows = Object.values(userBest)
+            .sort((a, b) => a.time - b.time)
+            .map(item => item.row);
+
+        // Clear ScoreBoardUnique for this period
+        await sheets.spreadsheets.values.clear({
+            spreadsheetId,
+            range: `ScoreBoardUnique!${startColLetter}:${endColLetter}`
+        });
+
+        // Write unique rows to ScoreBoardUnique
+        if (uniqueRows.length > 0) {
+            await sheets.spreadsheets.values.update({
+                spreadsheetId,
+                range: `ScoreBoardUnique!${startColLetter}1`,
+                valueInputOption: 'USER_ENTERED',
+                requestBody: { values: uniqueRows }
+            });
+        }
+
+        console.log(`[SYNC_SCORES] ScoreBoardUnique/${periodKey}: ${uniqueRows.length} unique users`);
+
+    } catch (err) {
+        console.error(`[SYNC_SCORES] Error updating ScoreBoardUnique/${periodKey}:`, err.message);
+    }
 }
