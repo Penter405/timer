@@ -92,11 +92,19 @@ function handleLogout() {
 
 window.updateNavBar = function () {
     const logoutBtn = document.getElementById('navLogout');
+    const googleBtn = document.getElementById('googleSignInBtn');
+    const parallelogramBtn = document.getElementById('userParallelogram');
 
     if (window.loggedIn) {
         logoutBtn?.classList.remove('hidden');
+        // Hide Google button, show parallelogram
+        if (googleBtn) googleBtn.style.display = 'none';
+        parallelogramBtn?.classList.remove('hidden');
     } else {
         logoutBtn?.classList.add('hidden');
+        // Show Google button, hide parallelogram
+        if (googleBtn) googleBtn.style.display = '';
+        parallelogramBtn?.classList.add('hidden');
     }
 }
 
