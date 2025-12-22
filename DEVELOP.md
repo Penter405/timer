@@ -77,7 +77,10 @@
 ## 🔌 API 端點
 
 ### `/api/save_time` (POST)
-儲存成績到 MongoDB pending_scores。
+儲存成績到 MongoDB。同時更新兩個集合：
+
+- `scores` - 插入新成績（所有記錄）
+- `scores_unique` - 原子更新每用戶每時段最佳成績（使用 `$min`）
 
 ```javascript
 // Headers: Authorization: Bearer {Google ID Token}
@@ -108,16 +111,15 @@
 ```
 
 ### `/api/sync_scores` (POST)
-同步 MongoDB pending_scores 到 Google Sheets。
+從 MongoDB 同步到 Google Sheets。
 
-**由 cron-job.org 定時呼叫**
+**由 cron-job.org 每 5 分鐘呼叫**
 
 流程：
-1. 讀取 MongoDB pending_scores
-2. 寫入 ScoreBoard (5 個時段)
-3. 更新 ScoreBoardUnique (每用戶只保留最佳)
-4. 更新 FrontEnd 系列表格
-5. 刪除已同步的 pending_scores
+1. 從 MongoDB `scores` 讀取 pending → 寫入 `ScoreBoard`
+2. 從 MongoDB `scores_unique` 讀取 → 寫入 `ScoreBoardUnique`
+3. 加入暱稱 → 寫入 `FrontEndScoreBoard` + `FrontEndScoreBoardUnique`
+4. 更新 syncStatus 為 'synced'
 
 ### `/api/get_nicknames` (POST)
 批次查詢 UserID → Nickname 映射。
