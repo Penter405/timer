@@ -48,7 +48,8 @@ module.exports = async (req, res) => {
                 { upsert: true, returnDocument: 'after' }
             );
 
-            const userID = counterResult.value.count;
+            // MongoDB driver v4+ returns the document directly, not in .value
+            const userID = counterResult?.count || counterResult?.value?.count;
 
             user = {
                 email,
@@ -82,7 +83,8 @@ module.exports = async (req, res) => {
             { upsert: true, returnDocument: 'after' }
         );
 
-        const number = nicknameCounter.value.count;
+        // MongoDB driver v4+ returns the document directly, not in .value
+        const number = nicknameCounter?.count || nicknameCounter?.value?.count;
         const uniqueName = `${trimmedNickname}#${number}`;  // Always has #number
 
         // === 6. Update MongoDB ===
