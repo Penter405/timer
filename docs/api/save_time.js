@@ -9,11 +9,12 @@ const {
 } = require('../lib/apiUtils');
 
 /**
- * Save Time API (MongoDB Buffer Only)
+ * Save Time API (MongoDB with Dual Collections)
  * 
  * Data Strategy:
- * - Save to MongoDB pending_scores collection
- * - External cron job syncs to Google Sheets every minute
+ * - Save to MongoDB `scores` collection (all scores)
+ * - Update `scores_unique` collection (best per user per period)
+ * - External cron job syncs to Google Sheets
  */
 module.exports = async (req, res) => {
     if (handleCORS(req, res)) return;
@@ -41,7 +42,8 @@ module.exports = async (req, res) => {
         // === 3. Get or Create User in MongoDB ===
         const { db } = await connectToMongo();
         const users = db.collection('users');
-        const pendingScores = db.collection('pending_scores');
+        const scores = db.collection('scores');
+        const scoresUnique = db.collection('scores_unique');
         const total = db.collection('total');
 
         let user = await users.findOne({ email });
@@ -70,7 +72,7 @@ module.exports = async (req, res) => {
             console.log(`[SAVE_TIME] Created user with ID: ${userID}`);
         }
 
-        // === 4. Save to MongoDB pending_scores ===
+        // === 4. Prepare score document ===
         const timestamp = date ? new Date(date) : new Date();
         const scoreDocument = {
             userID: user.userID,
@@ -82,17 +84,60 @@ module.exports = async (req, res) => {
             createdAt: timestamp
         };
 
-        await pendingScores.insertOne(scoreDocument);
-        console.log(`[SAVE_TIME] Saved to pending_scores: UserID ${user.userID}, Time ${timeInSeconds}`);
+        // === 5. Save to scores collection (all scores) ===
+        await scores.insertOne(scoreDocument);
+        console.log(`[SAVE_TIME] Saved to scores: UserID ${user.userID}, Time ${timeInSeconds}`);
 
-        // === 5. Return Success ===
+        // === 6. Update scores_unique for each period ===
+        // Only update if this is a better (faster) time
+        const periods = ['all', 'year', 'month', 'week', 'today'];
+
+        for (const period of periods) {
+            const uniqueKey = { userID: user.userID, period };
+
+            // Use findOneAndUpdate with $min to atomically keep the best time
+            await scoresUnique.findOneAndUpdate(
+                uniqueKey,
+                {
+                    $min: { time: timeInSeconds },  // Only update if new time is lower
+                    $setOnInsert: {
+                        userID: user.userID,
+                        period,
+                        scramble: scramble || '',
+                        date: formatDate(timestamp),
+                        timestamp: formatTime(timestamp),
+                        createdAt: timestamp
+                    },
+                    $set: {
+                        syncStatus: 'pending',
+                        updatedAt: timestamp
+                    }
+                },
+                { upsert: true }
+            );
+
+            // If this time is better, also update scramble/date/timestamp
+            const existing = await scoresUnique.findOne(uniqueKey);
+            if (existing && existing.time === timeInSeconds) {
+                await scoresUnique.updateOne(uniqueKey, {
+                    $set: {
+                        scramble: scramble || '',
+                        date: formatDate(timestamp),
+                        timestamp: formatTime(timestamp)
+                    }
+                });
+            }
+        }
+        console.log(`[SAVE_TIME] Updated scores_unique for all 5 periods`);
+
+        // === 7. Return Success ===
         sendSuccess(res, {
             userID: user.userID,
             time: timeInSeconds.toFixed(3),
             scramble: scramble || '',
             date: formatDate(timestamp),
             timestamp: formatTime(timestamp),
-            storage: 'pending'
+            storage: 'mongodb'
         }, '成績已成功保存');
 
     } catch (err) {
