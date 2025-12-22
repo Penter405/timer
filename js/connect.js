@@ -106,8 +106,8 @@ async function syncNickname(email) {
 
     } catch (e) {
         console.error('[SYNC] Auto-Registration Failed:', e);
-        // Silent fail is ok for background sync
-        // User can still use the app, just won't have cloud sync
+        // When sync fails, show "你好" as fallback
+        updateParallelogramDisplay('你好');
     }
 }
 
@@ -169,6 +169,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // Save to local storage
                     localStorage.setItem('rubik_nickname', uniqueName);
+
+                    // Update parallelogram button display
+                    updateParallelogramDisplay(uniqueName);
 
                     // Clear input field for next update
                     if (nicknameEl) nicknameEl.value = '';
