@@ -193,14 +193,11 @@ footer {
     position: relative;
     display: inline-flex;
     align-items: center;
+    justify-content: flex-end;
 }
 
-.login-btn-container .user-parallelogram {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
+/* Google button stays in normal flow, parallelogram also in normal flow */
+/* They toggle visibility, so only one shows at a time */
 
 .nav-btn {
     padding: 8px 16px;
