@@ -22,6 +22,9 @@ window.handleCredentialResponse = function (response) {
             localStorage.removeItem('rubik_nickname');
         }
 
+        // Update parallelogram button to show loading
+        updateParallelogramDisplay('載入中...');
+
         // --- NEW: Sync Nickname from Cloud ---
         const payload = parseJwt(response.credential);
         if (payload && payload.email) {
@@ -89,10 +92,15 @@ async function syncNickname(email) {
             // User has a nickname registered
             localStorage.setItem('rubik_nickname', data.uniqueName);
             if (greetingEl) greetingEl.textContent = `你好 ${data.uniqueName}`;
+            // Update parallelogram button
+            updateParallelogramDisplay(data.uniqueName);
             console.log('[SYNC] Nickname loaded:', data.uniqueName);
         } else if (data.userID) {
             // No nickname yet, but we have an ID (new user or no nickname set)
-            if (greetingEl) greetingEl.textContent = `你好 ID:${data.userID}`;
+            const displayName = `ID:${data.userID}`;
+            if (greetingEl) greetingEl.textContent = `你好 ${displayName}`;
+            // Update parallelogram button
+            updateParallelogramDisplay(displayName);
             console.log('[SYNC] User ID registered:', data.userID);
         }
 
@@ -242,3 +250,139 @@ function saveTimes(arr) {
             .catch(err => console.error('Cloud Save Error:', err));
     }
 }
+
+// --- Parallelogram User Button Functions ---
+
+/**
+ * Update the parallelogram button display text
+ */
+function updateParallelogramDisplay(text) {
+    const displayEl = document.getElementById('userNicknameDisplay');
+    if (displayEl) {
+        displayEl.textContent = text || '登入';
+    }
+}
+
+/**
+ * Initialize the parallelogram button click handler
+ */
+function initParallelogramButton() {
+    const btn = document.getElementById('userParallelogram');
+    if (!btn) return;
+
+    btn.addEventListener('click', () => {
+        // If not logged in, trigger Google Sign-In
+        if (!window.loggedIn) {
+            if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+                google.accounts.id.prompt((notification) => {
+                    console.log('[PARALLELOGRAM] Google Sign-In prompt:', notification);
+                });
+            } else {
+                console.warn('[PARALLELOGRAM] Google Sign-In API not ready');
+                alert('Google 登入尚未載入，請稍後再試。');
+            }
+        }
+        // If logged in, clicking does nothing (or could navigate to settings)
+    });
+
+    // Apply saved colors on init
+    applyParallelogramColors();
+}
+
+/**
+ * Get parallelogram color settings from localStorage
+ */
+function getParallelogramSettings() {
+    const defaults = {
+        bgColor: 'gradient-cyan',
+        textColor: '#e6eef6'
+    };
+
+    const saved = localStorage.getItem('parallelogram_settings');
+    if (saved) {
+        try {
+            return { ...defaults, ...JSON.parse(saved) };
+        } catch (e) {
+            return defaults;
+        }
+    }
+    return defaults;
+}
+
+/**
+ * Save parallelogram color settings to localStorage
+ */
+function saveParallelogramSettings(settings) {
+    localStorage.setItem('parallelogram_settings', JSON.stringify(settings));
+}
+
+/**
+ * Apply parallelogram colors to the button
+ */
+function applyParallelogramColors() {
+    const btn = document.getElementById('userParallelogram');
+    if (!btn) return;
+
+    const settings = getParallelogramSettings();
+
+    // Remove all gradient classes first
+    btn.classList.remove('gradient-cyan', 'gradient-purple', 'gradient-green', 'gradient-orange');
+
+    // Apply background color
+    if (settings.bgColor.startsWith('gradient-')) {
+        btn.classList.add(settings.bgColor);
+        btn.style.background = ''; // Clear inline style
+    } else {
+        btn.style.background = settings.bgColor;
+    }
+
+    // Apply text color
+    btn.style.color = settings.textColor;
+}
+
+/**
+ * Initialize parallelogram color settings UI
+ */
+function initParallelogramSettings() {
+    const bgColorSelect = document.getElementById('parallelogramBgColor');
+    const textColorSelect = document.getElementById('parallelogramTextColor');
+
+    if (!bgColorSelect || !textColorSelect) return;
+
+    const settings = getParallelogramSettings();
+
+    // Set initial values
+    bgColorSelect.value = settings.bgColor;
+    textColorSelect.value = settings.textColor;
+
+    // Background color change handler
+    bgColorSelect.addEventListener('change', () => {
+        const current = getParallelogramSettings();
+        current.bgColor = bgColorSelect.value;
+        saveParallelogramSettings(current);
+        applyParallelogramColors();
+    });
+
+    // Text color change handler
+    textColorSelect.addEventListener('change', () => {
+        const current = getParallelogramSettings();
+        current.textColor = textColorSelect.value;
+        saveParallelogramSettings(current);
+        applyParallelogramColors();
+    });
+}
+
+// Initialize parallelogram button on DOM ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        initParallelogramButton();
+        initParallelogramSettings();
+    });
+} else {
+    initParallelogramButton();
+    initParallelogramSettings();
+}
+
+// Export for use in other modules
+window.updateParallelogramDisplay = updateParallelogramDisplay;
+window.applyParallelogramColors = applyParallelogramColors;
