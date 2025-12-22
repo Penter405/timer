@@ -14,7 +14,7 @@ const {
  * 
  * Request Body:
  * - token: Google ID Token (required)
- * - nickname: Nickname to set (required)
+ * - nickname: Nickname to set (optional - empty = sync/get mode)
  */
 module.exports = async (req, res) => {
     if (handleCORS(req, res)) return;
@@ -28,11 +28,7 @@ module.exports = async (req, res) => {
             return sendError(res, 401, 'Invalid or expired token', '請重新登入');
         }
 
-        if (!nickname || typeof nickname !== 'string') {
-            return sendError(res, 400, 'Invalid nickname', '暱稱不能為空');
-        }
-
-        console.log(`[UPDATE_NICKNAME] Processing for email: ${email}`);
+        console.log(`[UPDATE_NICKNAME] Processing for email: ${email}, nickname: "${nickname || '(sync mode)'}"`);
 
         // === 2. Get MongoDB Collections ===
         const { db } = await connectToMongo();
@@ -67,17 +63,29 @@ module.exports = async (req, res) => {
             console.log(`[UPDATE_NICKNAME] New user registered: UserID ${userID}`);
         }
 
-        // === 4. Generate unique nickname with #number (always) ===
+        // === 4. Handle Sync Mode (empty nickname) ===
+        if (!nickname || nickname.trim() === '') {
+            // Sync mode: just return existing user info
+            console.log(`[UPDATE_NICKNAME] Sync mode - returning existing info for UserID ${user.userID}`);
+            return sendSuccess(res, {
+                userID: user.userID,
+                uniqueName: user.nickname || null,
+                isNewUser
+            }, '用戶資訊同步成功');
+        }
+
+        // === 5. Generate unique nickname with #number (always) ===
+        const trimmedNickname = nickname.trim();
         const nicknameCounter = await counts.findOneAndUpdate(
-            { _id: nickname },  // No prefix
+            { _id: trimmedNickname },  // No prefix
             { $inc: { count: 1 } },
             { upsert: true, returnDocument: 'after' }
         );
 
         const number = nicknameCounter.value.count;
-        const uniqueName = `${nickname}#${number}`;  // Always has #number
+        const uniqueName = `${trimmedNickname}#${number}`;  // Always has #number
 
-        // === 5. Update MongoDB ===
+        // === 6. Update MongoDB ===
         await users.updateOne(
             { email },
             {
@@ -90,14 +98,14 @@ module.exports = async (req, res) => {
 
         console.log(`[UPDATE_NICKNAME] Updated: ${email} -> ${uniqueName}`);
 
-        // === 6. Optional: Sync to Google Sheets ===
+        // === 7. Optional: Sync to Google Sheets ===
         try {
             await syncNicknameToSheets(user.userID, uniqueName);
         } catch (sheetError) {
             console.error(`[UPDATE_NICKNAME] Sheet sync failed (non-critical):`, sheetError.message);
         }
 
-        // === 7. Return Success ===
+        // === 8. Return Success ===
         sendSuccess(res, {
             userID: user.userID,
             uniqueName,
