@@ -194,13 +194,25 @@ footer {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    min-width: 40px;
+    min-height: 36px;
 }
 
-/* Google button - align right and center vertically */
+/* Google button - positioned to overlap with parallelogram */
 .login-btn-container .g_id_signin {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
+}
+
+/* Parallelogram button - same position as Google button */
+/* When hidden, use display:none for proper overlapping */
+.login-btn-container .g_id_signin.hidden-login {
+    display: none !important;
+}
+
+.login-btn-container .user-parallelogram.hidden {
+    display: none !important;
 }
 
 .nav-btn {
