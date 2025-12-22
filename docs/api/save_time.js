@@ -56,7 +56,8 @@ module.exports = async (req, res) => {
                 { upsert: true, returnDocument: 'after' }
             );
 
-            const userID = counterResult.value.count;
+            // MongoDB driver v4+ returns the document directly, not in .value
+            const userID = counterResult?.count || counterResult?.value?.count;
 
             user = {
                 email,
