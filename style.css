@@ -193,6 +193,7 @@ footer {
     position: relative;
     display: inline-flex;
     align-items: center;
+    justify-content: flex-end;
     min-width: 40px;
     min-height: 40px;
 }
@@ -200,7 +201,7 @@ footer {
 .login-btn-container .user-parallelogram {
     position: absolute;
     top: 50%;
-    left: 0;
+    right: 0;
     transform: translateY(-50%);
 }
 
