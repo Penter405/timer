@@ -65,6 +65,7 @@ function handleLogout() {
 
     // Clear User Data from Local Storage and UI
     localStorage.removeItem('rubik_nickname');
+    localStorage.removeItem('rubik_user_id');
 
     // Clear Input Box
     const nicknameEl = document.getElementById('settingsNickname');
@@ -73,6 +74,11 @@ function handleLogout() {
     // Clear Greeting
     const greetingEl = document.getElementById('nicknameGreeting');
     if (greetingEl) greetingEl.textContent = '';
+
+    // Reset parallelogram button to "登入"
+    if (typeof window.updateParallelogramDisplay === 'function') {
+        window.updateParallelogramDisplay('登入');
+    }
 
     // Disable auto-select for next time
     if (typeof google !== 'undefined' && google.accounts) {

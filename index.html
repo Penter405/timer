@@ -18,8 +18,10 @@
                         data-client_id="989488402816-0cvnhchjvak4f16vf1d54pnbhm0dvh3k.apps.googleusercontent.com"
                         data-callback="handleCredentialResponse" data-auto_select="true" data-itp_support="true">
                     </div>
-                    <div class="g_id_signin" data-type="icon" data-shape="circle" data-theme="outline"
-                        data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
+                    <!-- Parallelogram User Button (always visible) -->
+                    <button id="userParallelogram" class="user-parallelogram">
+                        <span id="userNicknameDisplay">登入</span>
+                    </button>
                     <button id="navLogout" class="nav-btn hidden">登出</button>
                     <div style="width: 10px;" class="spacer"></div>
                     <button id="navMore" class="nav-btn">更多</button>
@@ -193,6 +195,35 @@
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
+                        </div>
+                    </div>
+                    <!-- Parallelogram Button Color Settings -->
+                    <div class="settings-item">
+                        <div class="settings-group">
+                            <label>用戶按鈕背景顏色</label>
+                            <select id="parallelogramBgColor">
+                                <option value="gradient-cyan">漸層青色</option>
+                                <option value="gradient-purple">漸層紫色</option>
+                                <option value="gradient-green">漸層綠色</option>
+                                <option value="gradient-orange">漸層橙色</option>
+                                <option value="#0f1724">深灰色</option>
+                                <option value="#06b6d4">青色</option>
+                                <option value="#8b5cf6">紫色</option>
+                                <option value="#22c55e">綠色</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div class="settings-group">
+                            <label>用戶按鈕文字顏色</label>
+                            <select id="parallelogramTextColor">
+                                <option value="#e6eef6">白色</option>
+                                <option value="#06b6d4">青色</option>
+                                <option value="#8b5cf6">紫色</option>
+                                <option value="#4ade80">綠色</option>
+                                <option value="#f59e0b">橙色</option>
+                                <option value="#0f1724">深灰色</option>
+                            </select>
                         </div>
                     </div>
                 </div>
