@@ -47,7 +47,8 @@
 | `users` | 用戶資料 | `{ email, userID, nickname, createdAt }` |
 | `counts` | 暱稱計數器 | `{ _id: "Penter", count: 5 }` |
 | `total` | 全局計數器 | `{ _id: "userID", count: 100 }` |
-| `pending_scores` | 暫存成績 | `{ userID, time, scramble, date, syncStatus }` |
+| `scores` | 所有成績 | `{ userID, time, scramble, date, timestamp, syncStatus }` |
+| `scores_unique` | 每用戶每時段最佳 | `{ userID, period, time, scramble, date, syncStatus }` |
 
 ### Google Sheets 結構
 
