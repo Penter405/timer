@@ -14,17 +14,21 @@
             <div class="header-left">
                 <h1 id="navTitle" style="cursor:pointer;">Timer</h1>
                 <nav class="navbar">
-                    <div id="g_id_onload"
-                        data-client_id="989488402816-0cvnhchjvak4f16vf1d54pnbhm0dvh3k.apps.googleusercontent.com"
-                        data-callback="handleCredentialResponse" data-auto_select="true" data-itp_support="true">
+                    <!-- Login Button Container (Google and Parallelogram share same position) -->
+                    <div class="login-btn-container">
+                        <div id="g_id_onload"
+                            data-client_id="989488402816-0cvnhchjvak4f16vf1d54pnbhm0dvh3k.apps.googleusercontent.com"
+                            data-callback="handleCredentialResponse" data-auto_select="true" data-itp_support="true">
+                        </div>
+                        <!-- Google Sign-In Button (visible before login) -->
+                        <div id="googleSignInBtn" class="g_id_signin" data-type="icon" data-shape="circle"
+                            data-theme="outline" data-text="signin_with" data-size="large" data-logo_alignment="left">
+                        </div>
+                        <!-- Parallelogram User Button (shown after login, overlays same position) -->
+                        <button id="userParallelogram" class="user-parallelogram hidden">
+                            <span id="userNicknameDisplay">載入中...</span>
+                        </button>
                     </div>
-                    <!-- Google Sign-In Button (visible before login) -->
-                    <div id="googleSignInBtn" class="g_id_signin" data-type="icon" data-shape="circle"
-                        data-theme="outline" data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
-                    <!-- Parallelogram User Button (shown after login) -->
-                    <button id="userParallelogram" class="user-parallelogram hidden">
-                        <span id="userNicknameDisplay">載入中...</span>
-                    </button>
                     <button id="navLogout" class="nav-btn hidden">登出</button>
                     <div style="width: 10px;" class="spacer"></div>
                     <button id="navMore" class="nav-btn">更多</button>

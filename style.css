@@ -188,6 +188,22 @@ footer {
     gap: 8px;
 }
 
+/* Login Button Container - holds Google button and parallelogram in same position */
+.login-btn-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-width: 40px;
+    min-height: 40px;
+}
+
+.login-btn-container .user-parallelogram {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+}
+
 .nav-btn {
     padding: 8px 16px;
     font-size: 14px;
