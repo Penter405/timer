@@ -273,14 +273,7 @@ function initParallelogramButton() {
     btn.addEventListener('click', () => {
         // If not logged in, trigger Google Sign-In
         if (!window.loggedIn) {
-            if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-                google.accounts.id.prompt((notification) => {
-                    console.log('[PARALLELOGRAM] Google Sign-In prompt:', notification);
-                });
-            } else {
-                console.warn('[PARALLELOGRAM] Google Sign-In API not ready');
-                alert('Google 登入尚未載入，請稍後再試。');
-            }
+            triggerGoogleSignIn();
         }
         // If logged in, clicking does nothing (or could navigate to settings)
     });
@@ -288,6 +281,45 @@ function initParallelogramButton() {
     // Apply saved colors on init
     applyParallelogramColors();
 }
+
+/**
+ * Trigger Google Sign-In prompt
+ */
+function triggerGoogleSignIn() {
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+        // Try the prompt method first
+        google.accounts.id.prompt((notification) => {
+            console.log('[LOGIN] Google Sign-In prompt notification:', notification);
+
+            // If prompt was dismissed or not displayed, show message
+            if (notification.isNotDisplayed()) {
+                console.log('[LOGIN] Prompt not displayed, reason:', notification.getNotDisplayedReason());
+                // Fall back to manual re-initialize
+                google.accounts.id.initialize({
+                    client_id: '989488402816-0cvnhchjvak4f16vf1d54pnbhm0dvh3k.apps.googleusercontent.com',
+                    callback: window.handleCredentialResponse,
+                    auto_select: false
+                });
+                google.accounts.id.prompt();
+            } else if (notification.isSkippedMoment()) {
+                console.log('[LOGIN] Prompt skipped, reason:', notification.getSkippedReason());
+            }
+        });
+    } else {
+        console.warn('[LOGIN] Google Sign-In API not ready, waiting...');
+        // Wait for Google API to load and try again
+        setTimeout(() => {
+            if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+                google.accounts.id.prompt();
+            } else {
+                alert('Google 登入尚未載入，請重新整理頁面。');
+            }
+        }, 1000);
+    }
+}
+
+// Export for external use
+window.triggerGoogleSignIn = triggerGoogleSignIn;
 
 /**
  * Get parallelogram color settings from localStorage
