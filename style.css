@@ -208,6 +208,54 @@ footer {
     font-weight: 600;
 }
 
+/* Parallelogram User Button */
+.user-parallelogram {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px 8px 24px;  /* Extra left padding for slant */
+    min-height: 36px;
+    min-width: 80px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #e6eef6;
+    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    border: none;
+    /* Trapezoid: AB (top) longer than CD (bottom), BC vertical, AD 45° slant */
+    clip-path: polygon(
+        12px 0,        /* A - top left (shifted right for 45° slant) */
+        100% 0,        /* B - top right */
+        100% 100%,     /* C - bottom right */
+        0 100%         /* D - bottom left */
+    );
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.user-parallelogram:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+}
+
+.user-parallelogram:active {
+    transform: translateY(0);
+}
+
+/* Parallelogram Color Variants */
+.user-parallelogram.gradient-cyan {
+    background: linear-gradient(135deg, #06b6d4, #0891b2);
+}
+.user-parallelogram.gradient-purple {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+.user-parallelogram.gradient-green {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+.user-parallelogram.gradient-orange {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
 .hidden {
     visibility: hidden !important;
     pointer-events: none;
