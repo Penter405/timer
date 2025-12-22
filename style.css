@@ -193,11 +193,15 @@ footer {
     position: relative;
     display: inline-flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
 }
 
-/* Google button stays in normal flow, parallelogram also in normal flow */
-/* They toggle visibility, so only one shows at a time */
+/* Google button - align right and center vertically */
+.login-btn-container .g_id_signin {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
 
 .nav-btn {
     padding: 8px 16px;
