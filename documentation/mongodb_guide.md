@@ -121,9 +121,9 @@
 
 ### 連接到 Cluster
 1. 打開 Compass
-2. 使用連接字串：
+2. 使用連接字串（請使用你的環境變數或 Secrets，不要把密碼硬編碼）：
    ```
-   mongodb+srv://bsid405_db_user:密碼@rubik-timer.ffdstga.mongodb.net/
+   mongodb+srv://<REDACTED_USER>:<REDACTED_PASSWORD>@rubik-timer.ffdstga.mongodb.net/
    ```
 3. 點擊 Connect
 

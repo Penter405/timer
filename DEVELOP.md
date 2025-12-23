@@ -169,7 +169,7 @@ timer/
 GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
 GOOGLE_SHEET_ID=xxx
 GOOGLE_APPLICATION_CREDENTIALS_JSON={"type":"service_account",...}
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/timer
+MONGODB_URI=mongodb+srv://<REDACTED>@cluster.mongodb.net/timer
 ```
 
 ---
