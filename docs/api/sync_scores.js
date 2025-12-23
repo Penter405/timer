@@ -167,19 +167,33 @@ module.exports = async (req, res) => {
         }
 
         // === 5. Update FrontEndScoreBoard ===
+        // Read the already-written ScoreBoard ranges, map userID->nickname, then write FrontEnd sheets
         for (const [periodKey, frontConfig] of Object.entries(FRONTEND_PERIOD_CONFIG)) {
             const config = PERIOD_CONFIG[periodKey];
 
-            // Read all scores for this period
-            const allScores = await scores.find({}).sort({ time: 1 }).limit(MAX_ROWS).toArray();
+            const startColLetter = getColumnLetter(config.startCol);
+            const endColLetter = getColumnLetter(config.endCol);
 
-            const frontEndRows = allScores.map(score => [
-                formatSheetValue(userMap[score.userID] || `ID:${score.userID}`),
-                formatSheetValue(score.time.toFixed(3)),
-                formatSheetValue(score.scramble || ''),
-                formatSheetValue(score.date || ''),
-                formatSheetValue(score.timestamp || '')
-            ]);
+            // Read ScoreBoard columns for this period (UserID, Time, Scramble, Date, Timestamp, Status)
+            const resp = await sheets.spreadsheets.values.get({
+                spreadsheetId,
+                range: `ScoreBoard!${startColLetter}:${endColLetter}`
+            });
+
+            const rows = resp.data.values || [];
+
+            // Transform to FrontEnd rows: Nickname, Time, Scramble, Date, Timestamp
+            const frontEndRows = rows.slice(0, MAX_ROWS).map(r => {
+                const userId = (r[0] || '').toString();
+                const nickname = userMap[userId] || `ID:${userId}`;
+                return [
+                    formatSheetValue(nickname),
+                    formatSheetValue((r[1] || '').replace(/^'/, '')),
+                    formatSheetValue(r[2] || ''),
+                    formatSheetValue(r[3] || ''),
+                    formatSheetValue(r[4] || '')
+                ];
+            });
 
             const frontStartCol = getColumnLetter(frontConfig.startCol);
             const frontEndCol = getColumnLetter(frontConfig.startCol + 4);
@@ -202,16 +216,30 @@ module.exports = async (req, res) => {
 
         // === 6. Update FrontEndScoreBoardUnique ===
         for (const [periodKey, frontConfig] of Object.entries(FRONTEND_PERIOD_CONFIG)) {
-            // Read unique scores for this period from MongoDB
-            const uniqueScores = await scoresUnique.find({ period: periodKey }).sort({ time: 1 }).limit(MAX_ROWS).toArray();
+            const config = PERIOD_CONFIG[periodKey];
 
-            const frontEndRows = uniqueScores.map(score => [
-                formatSheetValue(userMap[score.userID] || `ID:${score.userID}`),
-                formatSheetValue(score.time.toFixed(3)),
-                formatSheetValue(score.scramble || ''),
-                formatSheetValue(score.date || ''),
-                formatSheetValue(score.timestamp || '')
-            ]);
+            const startColLetter = getColumnLetter(config.startCol);
+            const endColLetter = getColumnLetter(config.endCol);
+
+            // Read ScoreBoardUnique columns for this period
+            const resp = await sheets.spreadsheets.values.get({
+                spreadsheetId,
+                range: `ScoreBoardUnique!${startColLetter}:${endColLetter}`
+            });
+
+            const rows = resp.data.values || [];
+
+            const frontEndRows = rows.slice(0, MAX_ROWS).map(r => {
+                const userId = (r[0] || '').toString();
+                const nickname = userMap[userId] || `ID:${userId}`;
+                return [
+                    formatSheetValue(nickname),
+                    formatSheetValue((r[1] || '').replace(/^'/, '')),
+                    formatSheetValue(r[2] || ''),
+                    formatSheetValue(r[3] || ''),
+                    formatSheetValue(r[4] || '')
+                ];
+            });
 
             const frontStartCol = getColumnLetter(frontConfig.startCol);
             const frontEndCol = getColumnLetter(frontConfig.startCol + 4);
