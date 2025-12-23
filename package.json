@@ -1,0 +1,13 @@
+{
+    "name": "rubiks-cube-timer",
+    "version": "1.0.0",
+    "description": "Rubik's Cube Timer with MongoDB and Google Sheets Sync",
+    "main": "index.js",
+    "dependencies": {
+        "mongodb": "^6.3.0",
+        "googleapis": "^129.0.0"
+    },
+    "engines": {
+        "node": "18.x"
+    }
+}
