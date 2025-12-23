@@ -55,13 +55,17 @@ module.exports = async (req, res) => {
         const sheets = getSheetsClient();
         const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
-        if (!spreadsheetId) {
-            throw new Error('GOOGLE_SHEET_ID not configured');
-        }
-
         // === 1. Get all pending scores from MongoDB ===
         const pendingScores = await scores.find({ syncStatus: 'pending' }).toArray();
         const pendingUnique = await scoresUnique.find({ syncStatus: 'pending' }).toArray();
+
+        // [SAFETY CHECK] If DB connection is empty/bad, don't wipe the sheets!
+        // We assume a real production database should have at least some users.
+        const userCount = await users.countDocuments();
+        if (userCount === 0) {
+            console.warn('[SYNC_SCORES] SAFETY ABORT: MongoDB appears empty (0 users). Skipping sync to prevent wiping Sheets.');
+            return sendSuccess(res, { message: 'Safety Abort: Database appears empty.' });
+        }
 
         console.log(`[SYNC_SCORES] Found ${pendingScores.length} pending scores, ${pendingUnique.length} pending unique`);
 
