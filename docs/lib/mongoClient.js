@@ -23,8 +23,6 @@ async function connectToMongo() {
     console.log('[MongoDB] Creating new connection...');
 
     const client = await MongoClient.connect(uri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
         maxPoolSize: 10, // Connection pool size
         serverSelectionTimeoutMS: 5000, // Timeout after 5s
         socketTimeoutMS: 45000, // Close sockets after 45s

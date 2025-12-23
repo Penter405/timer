@@ -56,12 +56,11 @@ async function testMongoConnection() {
         await users.deleteOne({ _id: insertResult.insertedId });
         console.log('✅ Test document deleted!\n');
 
-        // Test 7: Get collection stats
+        // Test 7: Get collection stats (using countDocuments)
         console.log('📈 Collection Stats:');
-        const stats = await users.stats();
-        console.log('   Documents:', stats.count);
-        console.log('   Storage Size:', (stats.storageSize / 1024).toFixed(2), 'KB');
-        console.log('   Indexes:', stats.nindexes);
+        const count = await users.countDocuments();
+        console.log('   Documents:', count);
+        console.log('   Indexes: (use listIndexes if needed)');
         console.log('');
 
         console.log('🎉 All tests passed! MongoDB is ready to use.\n');
