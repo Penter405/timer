@@ -8,3 +8,4 @@ node_modules/
 
 # Contains API secrets - do not commit
 documentation/CountsGAS.gs
+.env.local
