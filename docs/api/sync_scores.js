@@ -174,8 +174,27 @@ module.exports = async (req, res) => {
         for (const [periodKey, frontConfig] of Object.entries(FRONTEND_PERIOD_CONFIG)) {
             const config = PERIOD_CONFIG[periodKey];
 
-            // Read all scores for this period
-            const allScores = await scores.find({}).sort({ time: 1 }).limit(MAX_ROWS).toArray();
+            // Calculate start date for filtering
+            let query = {};
+            const now = new Date();
+            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+            if (periodKey === 'year') {
+                query.createdAt = { $gte: new Date(now.getFullYear(), 0, 1) };
+            } else if (periodKey === 'month') {
+                query.createdAt = { $gte: new Date(now.getFullYear(), now.getMonth(), 1) };
+            } else if (periodKey === 'week') {
+                // Get Monday of current week
+                const day = startOfDay.getDay() || 7; // Get current day number, converting Sun. to 7
+                if (day !== 1) startOfDay.setHours(-24 * (day - 1));
+                query.createdAt = { $gte: startOfDay };
+            } else if (periodKey === 'today') {
+                query.createdAt = { $gte: startOfDay };
+            }
+            // 'all' uses empty query {}
+
+            // Read scores for this period (filtered by date)
+            const allScores = await scores.find(query).sort({ time: 1 }).limit(MAX_ROWS).toArray();
 
             const frontEndRows = allScores.map(score => [
                 formatSheetValue(userMap[score.userID] || `ID:${score.userID}`),
@@ -201,7 +220,7 @@ module.exports = async (req, res) => {
                     requestBody: { values: frontEndRows }
                 });
             }
-            console.log(`[SYNC_SCORES] FrontEndScoreBoard/${periodKey}: ${frontEndRows.length} rows`);
+            console.log(`[SYNC_SCORES] Updated FrontEndScoreBoard/${periodKey}: ${frontEndRows.length} rows`);
         }
 
         // === 6. Update FrontEndScoreBoardUnique ===

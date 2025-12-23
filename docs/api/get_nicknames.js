@@ -28,7 +28,23 @@ module.exports = async (req, res) => {
         const { users, scores } = await getCollections();
 
         // === 2. Fetch Top Scores ===
-        const query = period === 'all' ? {} : { period };
+        let query = {};
+        const now = new Date();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        if (period === 'year') {
+            query.createdAt = { $gte: new Date(now.getFullYear(), 0, 1) };
+        } else if (period === 'month') {
+            query.createdAt = { $gte: new Date(now.getFullYear(), now.getMonth(), 1) };
+        } else if (period === 'week') {
+            const day = startOfDay.getDay() || 7;
+            if (day !== 1) startOfDay.setHours(-24 * (day - 1));
+            query.createdAt = { $gte: startOfDay };
+        } else if (period === 'today') {
+            query.createdAt = { $gte: startOfDay };
+        }
+        // 'all' uses empty query {}
+
         const topScores = await scores
             .find(query)
             .sort({ time: 1 }) // Fastest first
