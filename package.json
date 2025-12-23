@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "googleapis": "^169.0.0",
+    "mongodb": "^7.0.0"
+  }
+}
