@@ -5,6 +5,7 @@ const {
     sendError,
     sendSuccess,
     formatSheetValue,
+    cleanSheetValue,
     getColumnLetter
 } = require('../lib/apiUtils');
 
@@ -37,11 +38,9 @@ const FRONTEND_PERIOD_CONFIG = {
  * Sync Scores API (Single Collection Mode)
  * 
  * 1. Reads pending scores from `scores` collection.
- * 2. Appends to ScoreBoard (History).
- * 3. Reads existing ScoreBoardUnique from Sheet.
- * 4. Merges pending scores into Unique List (In-Memory).
- * 5. Writes back to ScoreBoardUnique.
- * 6. Deletes pending scores from MongoDB.
+ * 2. Syncs History (ScoreBoard) -> Derives FrontEndScoreBoard.
+ * 3. Deletes pending scores from MongoDB.
+ * 4. Syncs Unique (ScoreBoardUnique) -> Derives FrontEndScoreBoardUnique.
  */
 module.exports = async (req, res) => {
     if (handleCORS(req, res)) return;
@@ -72,7 +71,9 @@ module.exports = async (req, res) => {
         }
 
         if (pendingScores.length > 0) {
-            // === 3. Sync ScoreBoard (Backend History) - Top 1000 Solves (Global Best) ===
+            // === 3. Sync ScoreBoard (Backend History) - Top 1000 Solves ===
+            // AND Sync FrontEndScoreBoard (Derived)
+
             const newRows = pendingScores.map(score => [
                 formatSheetValue(score.userID),
                 formatSheetValue(score.time.toFixed(3)),
@@ -91,63 +92,21 @@ module.exports = async (req, res) => {
                     spreadsheetId,
                     range: `ScoreBoard!${startColLetter}:${endColLetter}`
                 });
-                const existingRows = sheetResp.data.values || [];
+                const rawExistingRows = sheetResp.data.values || [];
 
-                // 2. Append New
-                const combinedRows = existingRows.concat(newRows);
+                // Validate/Clean existing rows (ensure we can parse numbers)
+                // We strip quotes if they somehow exist in the read data
+                const existingRows = rawExistingRows.map(row => row.map(cell => cleanSheetValue(cell)));
+
+                // 2. Append New (We clean newRows too just for sorting consistency, though they have clean numbers inside)
+                // Actually newRows has formatted values ('1.23). cleanSheetValue removes ' for logic.
+                const cleanNewRows = newRows.map(row => row.map(cell => cleanSheetValue(cell)));
+
+                const combinedRows = existingRows.concat(cleanNewRows);
 
                 // 3. Sort by Time (Ascending) & Cap at 1000
-                const finalRows = combinedRows
-                    .sort((a, b) => {
-                        const timeA = parseFloat(a[1]);
-                        const timeB = parseFloat(b[1]);
-                        if (isNaN(timeA)) return 1; // Check invalid/header
-                        if (isNaN(timeB)) return -1;
-                        return timeA - timeB;
-                    })
-                    .slice(0, MAX_ROWS);
-
-                // 4. Overwrite
-                await sheets.spreadsheets.values.clear({
-                    spreadsheetId,
-                    range: `ScoreBoard!${startColLetter}:${endColLetter}`
-                });
-
-                await sheets.spreadsheets.values.update({
-                    spreadsheetId,
-                    range: `ScoreBoard!${startColLetter}1`,
-                    valueInputOption: 'USER_ENTERED',
-                    requestBody: { values: finalRows }
-                });
-                console.log(`[SYNC_SCORES] ScoreBoard/${periodKey}: Updated Top ${finalRows.length} rows`);
-            }
-
-            // === 4. Sync FrontEndScoreBoard (Frontend History) - Top 1000 Solves ===
-            const frontEndRows = pendingScores.map(score => {
-                const userId = (score.userID || '').toString();
-                const nickname = userMap[userId] || `ID:${userId}`;
-                return [
-                    formatSheetValue(nickname),
-                    formatSheetValue(score.time.toFixed(3)),
-                    formatSheetValue(score.scramble || ''),
-                    formatSheetValue(score.date || ''),
-                    formatSheetValue(score.timestamp || '')
-                ];
-            });
-
-            for (const [periodKey, frontConfig] of Object.entries(FRONTEND_PERIOD_CONFIG)) {
-                const startColLetter = getColumnLetter(frontConfig.startCol);
-                const endColLetter = getColumnLetter(frontConfig.startCol + 4);
-
-                const sheetResp = await sheets.spreadsheets.values.get({
-                    spreadsheetId,
-                    range: `FrontEndScoreBoard!${startColLetter}:${endColLetter}`
-                });
-                const existingRows = sheetResp.data.values || [];
-                const combinedRows = existingRows.concat(frontEndRows);
-
-                // Sort by Time (Ascending) & Cap at 1000
-                const finalRows = combinedRows
+                // Column 1 is Time
+                const sortedRows = combinedRows
                     .sort((a, b) => {
                         const timeA = parseFloat(a[1]);
                         const timeB = parseFloat(b[1]);
@@ -157,17 +116,60 @@ module.exports = async (req, res) => {
                     })
                     .slice(0, MAX_ROWS);
 
+                // 4. Re-Format for Writing (Force String)
+                const finalRows = sortedRows.map(row => row.map(cell => formatSheetValue(cell)));
+
+                // 5. Write Backend (ScoreBoard) - Overwrite Row 1
                 await sheets.spreadsheets.values.clear({
                     spreadsheetId,
-                    range: `FrontEndScoreBoard!${startColLetter}:${endColLetter}`
+                    range: `ScoreBoard!${startColLetter}:${endColLetter}`
                 });
 
-                await sheets.spreadsheets.values.update({
-                    spreadsheetId,
-                    range: `FrontEndScoreBoard!${startColLetter}1`,
-                    valueInputOption: 'USER_ENTERED',
-                    requestBody: { values: finalRows }
+                if (finalRows.length > 0) {
+                    await sheets.spreadsheets.values.update({
+                        spreadsheetId,
+                        range: `ScoreBoard!${startColLetter}1`,
+                        valueInputOption: 'USER_ENTERED',
+                        requestBody: { values: finalRows }
+                    });
+                }
+                console.log(`[SYNC_SCORES] ScoreBoard/${periodKey}: Updated Top ${finalRows.length} rows`);
+
+                // 6. Derive & Write FrontEndScoreBoard
+                // Map UserID (Col 0) to Nickname
+                const frontEndRows = finalRows.map(row => {
+                    // row[0] is formatted like '123 or 123
+                    const rawID = cleanSheetValue(row[0]).toString();
+                    const nickname = userMap[rawID] || `ID:${rawID}`;
+
+                    // Construct Frontend Row: Nickname, Time, Scramble, Date, Timestamp
+                    // row indices: 0:ID, 1:Time, 2:Scramble, 3:Date, 4:Timestamp, 5:Status
+                    return [
+                        formatSheetValue(nickname),
+                        row[1], // Already formatted time
+                        row[2], // Already formatted scramble
+                        row[3], // Already formatted date
+                        row[4]  // Already formatted timestamp
+                    ];
                 });
+
+                const frontConfig = FRONTEND_PERIOD_CONFIG[periodKey];
+                const frontStartCol = getColumnLetter(frontConfig.startCol);
+                const frontEndCol = getColumnLetter(frontConfig.startCol + 4);
+
+                await sheets.spreadsheets.values.clear({
+                    spreadsheetId,
+                    range: `FrontEndScoreBoard!${frontStartCol}:${frontEndCol}`
+                });
+
+                if (frontEndRows.length > 0) {
+                    await sheets.spreadsheets.values.update({
+                        spreadsheetId,
+                        range: `FrontEndScoreBoard!${frontStartCol}1`,
+                        valueInputOption: 'USER_ENTERED',
+                        requestBody: { values: frontEndRows }
+                    });
+                }
             }
 
             // === CRITICAL: Delete from MongoDB immediately after History Sync ===
@@ -177,8 +179,7 @@ module.exports = async (req, res) => {
         }
 
         // === 5. Sync ScoreBoardUnique (Sheet-Based Logic) ===
-        // We read the existing sheet, merge pending scores, and write back.
-        // We start from Row 1 as requested by user.
+        // Row 1 Logic. Top 1000 Users.
 
         for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
             // A. Read Existing Data (Row 1+)
@@ -191,21 +192,23 @@ module.exports = async (req, res) => {
             });
 
             const uniqueMap = new Map();
-            const existingRows = sheetResp.data.values || [];
+            const rawExistingRows = sheetResp.data.values || [];
 
-            // Load Sheet Data into Map
-            existingRows.forEach(row => {
+            // Load Sheet Data into Map (Clean values first)
+            rawExistingRows.forEach(row => {
                 if (!row[0]) return;
-                const userID = row[0].toString();
-                const time = parseFloat(row[1]);
+                const cleanRow = row.map(c => cleanSheetValue(c));
+
+                const userID = cleanRow[0].toString();
+                const time = parseFloat(cleanRow[1]);
                 if (!isNaN(time)) {
                     uniqueMap.set(userID, {
                         userID,
                         time,
-                        scramble: row[2],
-                        date: row[3],
-                        timestamp: row[4],
-                        status: row[5]
+                        scramble: cleanRow[2],
+                        date: cleanRow[3],
+                        timestamp: cleanRow[4],
+                        status: cleanRow[5]
                     });
                 }
             });
@@ -233,32 +236,45 @@ module.exports = async (req, res) => {
                 .sort((a, b) => a.time - b.time)
                 .slice(0, 1000);
 
-            // B. Write Back to ScoreBoardUnique
+            // B. Prepare Rows (Force String)
+            const backendRows = sortedUnique.map(s => [
+                formatSheetValue(s.userID),
+                formatSheetValue(s.time.toFixed(3)),
+                formatSheetValue(s.scramble || ''),
+                formatSheetValue(s.date || ''),
+                formatSheetValue(s.timestamp || ''),
+                formatSheetValue(s.status || 'Verified')
+            ]);
+
+            // C. Write Back to ScoreBoardUnique
             await sheets.spreadsheets.values.clear({
                 spreadsheetId,
                 range: `ScoreBoardUnique!${startColLetter}:${endColLetter}`
             });
 
-            if (sortedUnique.length > 0) {
-                const rows = sortedUnique.map(s => [
-                    formatSheetValue(s.userID),
-                    formatSheetValue(s.time.toFixed(3)),
-                    formatSheetValue(s.scramble || ''),
-                    formatSheetValue(s.date || ''),
-                    formatSheetValue(s.timestamp || ''),
-                    formatSheetValue(s.status || 'Verified')
-                ]);
-
+            if (backendRows.length > 0) {
                 await sheets.spreadsheets.values.update({
                     spreadsheetId,
                     range: `ScoreBoardUnique!${startColLetter}1`,
                     valueInputOption: 'USER_ENTERED',
-                    requestBody: { values: rows }
+                    requestBody: { values: backendRows }
                 });
-                console.log(`[SYNC_SCORES] ScoreBoardUnique/${periodKey}: Updated ${rows.length} rows`);
+                console.log(`[SYNC_SCORES] ScoreBoardUnique/${periodKey}: Updated ${backendRows.length} rows`);
             }
 
-            // C. Write to FrontEndScoreBoardUnique
+            // D. Derive & Write FrontEndScoreBoardUnique
+            const frontEndUniqueRows = backendRows.map(row => {
+                const rawID = cleanSheetValue(row[0]).toString();
+                const nickname = userMap[rawID] || `ID:${rawID}`;
+                return [
+                    formatSheetValue(nickname),
+                    row[1],
+                    row[2],
+                    row[3],
+                    row[4]
+                ];
+            });
+
             const frontConfig = FRONTEND_PERIOD_CONFIG[periodKey];
             const frontStartCol = getColumnLetter(frontConfig.startCol);
             const frontEndCol = getColumnLetter(frontConfig.startCol + 4);
@@ -268,23 +284,12 @@ module.exports = async (req, res) => {
                 range: `FrontEndScoreBoardUnique!${frontStartCol}:${frontEndCol}`
             });
 
-            if (sortedUnique.length > 0) {
-                const frontRows = sortedUnique.map(s => {
-                    const nickname = userMap[s.userID] || `ID:${s.userID}`;
-                    return [
-                        formatSheetValue(nickname),
-                        formatSheetValue(s.time.toFixed(3)),
-                        formatSheetValue(s.scramble || ''),
-                        formatSheetValue(s.date || ''),
-                        formatSheetValue(s.timestamp || '')
-                    ];
-                });
-
+            if (frontEndUniqueRows.length > 0) {
                 await sheets.spreadsheets.values.update({
                     spreadsheetId,
                     range: `FrontEndScoreBoardUnique!${frontStartCol}1`,
                     valueInputOption: 'USER_ENTERED',
-                    requestBody: { values: frontRows }
+                    requestBody: { values: frontEndUniqueRows }
                 });
             }
         }
@@ -303,6 +308,7 @@ module.exports = async (req, res) => {
 
 /**
  * Find the next empty row for a specific period column
+ * (Kept for reference, though unused in Overwrite logic)
  */
 async function findNextEmptyRow(sheets, spreadsheetId, sheetName, startCol) {
     const colLetter = getColumnLetter(startCol);
@@ -314,13 +320,10 @@ async function findNextEmptyRow(sheets, spreadsheetId, sheetName, startCol) {
 
     const data = response.data.values || [];
 
-    // Find first empty row
     for (let i = 0; i < data.length; i++) {
         if (!data[i][0] || data[i][0] === '') {
-            return i + 1; // 1-indexed
+            return i + 1;
         }
     }
-
-    // If no empty row found, return next row after last
     return data.length + 1;
 }
