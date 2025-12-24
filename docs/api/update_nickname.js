@@ -98,7 +98,13 @@ module.exports = async (req, res) => {
             }
         );
 
-        console.log(`[UPDATE_NICKNAME] Updated: ${email} -> ${uniqueName}`);
+        // Flag for Sync Script: Nicknames have changed
+        await total.updateOne(
+            { _id: 'syncFlags' },
+            { $set: { nicknameUpdate: 1 } },
+            { upsert: true }
+        );
+        console.log(`[UPDATE_NICKNAME] Updated: ${email} -> ${uniqueName} (Flagged for Sync)`);
 
         // === 7. Optional: Sync to Google Sheets ===
         try {
