@@ -42,152 +42,46 @@
 
 ### MongoDB 集合
 
-| 集合名稱 | 用途 | 結構 |
-|---------|------|------|
-| `users` | 用戶資料 | `{ email, userID, nickname, createdAt }` |
-| `counts` | 暱稱計數器 | `{ _id: "Penter", count: 5 }` |
-| `total` | 全局計數器 | `{ _id: "userID", count: 100 }` |
-| `scores` | 所有成績 | `{ userID, time, scramble, date, timestamp, syncStatus }` |
-| `scores_unique` | 每用戶每時段最佳 | `{ userID, period, time, scramble, date, syncStatus }` |
+| 集合名稱 | 用途 | 結構 | 注意事項 |
+|---------|------|------|----------|
+| `users` | 用戶資料 | `{ email, userID, nickname }` | |
+| `counts` | 暱稱計數器 | `{ _id: "Penter", count: 5 }` | 生成 Penter#5 用 |
+| `total` | 全局計數器 + Flags | `{ _id: "userID", count: 100 }`<br>`{ _id: "syncFlags", nicknameUpdate: 1 }` | `syncFlags` 用於觸發名稱更新 |
+| `scores` | **暫存**成績 | `{ userID, time, scramble, date }` | **Sync 後會自動刪除** |
+
+> **Single Collection 架構**: 系統不再維護 `scores_unique` 集合。所有排行榜邏輯皆在 Sync 階段即時計算。
 
 ### Google Sheets 結構
 
-| 分頁名稱 | 用途 | 存取權限 |
-|---------|------|---------|
-| `ScoreBoard` | 所有成績記錄 | **公開讀取** |
-| `ScoreBoardUnique` | 每用戶最佳成績 | **公開讀取** |
-| `FrontEndScoreBoard` | 前端顯示用 (含暱稱) | **公開讀取** |
-| `FrontEndScoreBoardUnique` | 前端顯示用 (含暱稱) | **公開讀取** |
-| `Total` | UserID → Nickname 映射 | 私密 |
+⚠️ **所有資料皆從第 1 列 (Row 1) 開始寫入，會覆蓋原有 Header。**
+⚠️ **所有數據強制儲存為文字格式 (String)。**
 
-### ScoreBoard 欄位結構 (每時段 6 欄)
-
-| 時間段 | 欄位範圍 |
-|--------|---------|
-| 歷史 (all) | A-F |
-| 本年 (year) | G-L |
-| 本月 (month) | M-R |
-| 本周 (week) | S-X |
-| 本日 (today) | Y-AD |
-
-每組欄位格式：`UserID | Time(秒) | Scramble | Date | Timestamp | Status`
-每組欄位格式(with "FrontEnd" word in the sheet)：`nickname(from MongoDB ,use UserID to search nickname) | Time(秒) | Scramble | Date | Timestamp`
+| 分頁名稱 | 用途 | 邏輯 | 資料來源 |
+|---------|------|------|---------|
+| `ScoreBoard` | 歷史記錄 | **Top 1000 Solves** (按時間排序) | MongoDB `scores` + 累計 |
+| `FrontEndScoreBoard` | 前端顯示 (暱稱) | 同上 (ID 替換為 Nickname) | **複製自 `ScoreBoard`** |
+| `ScoreBoardUnique` | 排行榜 | **Top 1000 Users** (每人最佳) | 讀取 Sheet -> 合併 -> 排序 |
+| `FrontEndScoreBoardUnique` | 前端排行榜 (暱稱) | 同上 (ID 替換為 Nickname) | **複製自 `ScoreBoardUnique`** |
 
 ---
 
 ## 🔌 API 端點
 
 ### `/api/save_time` (POST)
-儲存成績到 MongoDB。同時更新兩個集合：
-
-- `scores` - 插入新成績（所有記錄）
-- `scores_unique` - 原子更新每用戶每時段最佳成績（使用 `$min`）
-
-```javascript
-// Headers: Authorization: Bearer {Google ID Token}
-// Request Body
-{
-  "time": 12345,        // 毫秒
-  "scramble": "R U R' U'",
-  "date": "2024-01-01T00:00:00Z"
-}
-```
+儲存成績到 MongoDB `scores` 集合 (作為 Pending Data)。
 
 ### `/api/update_nickname` (POST)
-註冊/更新用戶暱稱。
-
-```javascript
-// Request Body
-{
-  "token": "Google ID Token",
-  "nickname": "Penter"   // 空字串 = 僅同步現有資料
-}
-
-// Response
-{
-  "userID": 1,
-  "uniqueName": "Penter#1",
-  "isNewUser": false
-}
-```
+1. 更新用戶暱稱。
+2. **Flagging**: 設定 `total.syncFlags.nicknameUpdate = 1`。這會通知 Sync Script 下次執行時需要刷新 Frontend Sheet。
 
 ### `/api/sync_scores` (POST)
-從 MongoDB 同步到 Google Sheets。
+**Smart Sync Logic** (由 cron-job 每 5 分鐘觸發)
 
-**由 cron-job.org 每 5 分鐘呼叫**
-
-流程：
-1. 從 MongoDB `scores` 讀取 pending → 寫入 `ScoreBoard`
-2. 從 MongoDB `scores_unique` 讀取 → 寫入 `ScoreBoardUnique`
-3. 加入暱稱 → 寫入 `FrontEndScoreBoard` + `FrontEndScoreBoardUnique`
-4. 更新 syncStatus 為 'synced'
-
-### `/api/get_nicknames` (POST)
-批次查詢 UserID → Nickname 映射。
-
-```javascript
-// Request
-{ "ids": ["1", "2", "3"] }
-
-// Response
-{ "1": "Penter#1", "2": null, "3": "Speed#2" }
-```
-
----
-
-## 📁 檔案結構
-
-```
-timer/
-├── index.html          # 主頁面
-├── style.css           # 樣式
-├── script.js           # 核心計時邏輯
-├── js/
-│   ├── router.js       # SPA 頁面切換
-│   ├── connect.js      # Google Auth、API 呼叫
-│   └── scoreboard.js   # 排行榜邏輯
-├── docs/
-│   ├── vercel.json     # Vercel 設定
-│   ├── api/
-│   │   ├── save_time.js
-│   │   ├── update_nickname.js
-│   │   ├── sync_scores.js
-│   │   ├── get_nicknames.js
-│   │   └── sheetsClient.js
-│   └── lib/
-│       ├── apiUtils.js
-│       └── mongoClient.js
-└── documentation/      # 設計文件
-```
-
----
-
-## ⚙️ 環境變數
-
-### Vercel 設定
-
-```
-GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
-GOOGLE_SHEET_ID=xxx
-GOOGLE_APPLICATION_CREDENTIALS_JSON={"type":"service_account",...}
-MONGODB_URI=mongodb+srv://<REDACTED>@cluster.mongodb.net/timer
-```
-
----
-
-## 🔄 外部定時任務 (cron-job.org)
-
-| 任務名稱 | URL | 頻率 |
-|---------|-----|------|
-| Timer Sync Scores | `https://timer-neon-two.vercel.app/api/sync_scores` | 每 5 分鐘 |
-
-### 設定項目
-
-- **Request Method**: POST
-- **Enable job**: ✅
-- **Save responses in job history**: ✅
-- **Notify after failure**: ✅ (1 failure)
-- **Disabled after too many failures**: ✅
+1. **Check**: 檢查 MongoDB 是否有 `pendingScores > 0` 或 `nicknameUpdate == 1`。
+2. **Short Circuit**: 若兩者皆無，**立即結束** (節省 API Quota)。
+3. **Triggered**:
+    - **New Solve**: 執行完整 Sync (讀取 -> 合併 -> 排序 Top 1000 -> 寫入 Backend -> 複製到 Frontend -> 刪除 MongoDB Data)。
+    - **New Name Only**: 僅刷新 Frontend Sheets (讀取 Backend -> 換名 -> 寫入 Frontend -> Reset Flag)。
 
 ---
 
@@ -203,23 +97,13 @@ git push origin main  # 自動部署
 git push origin main  # 自動部署
 ```
 
-### 手動同步
-```bash
-curl -X POST https://timer-neon-two.vercel.app/api/sync_scores
-```
-
----
-
 ## 🔐 安全設計
 
 | 資料 | 公開性 |
 |------|--------|
-| ScoreBoard / FrontEnd 系列 | ✅ 公開 (gviz API 可讀) |
-| MongoDB 用戶資料 | ❌ 私密 |
-| Google Service Account | ❌ 私密 (Vercel 環境變數) |
+| MongoDB | ❌ 私密 |
+| Google Sheets (Backend) | ❌ 建議隱藏 (僅 ID) |
+| Google Sheets (Frontend) | ✅ 公開 (含暱稱) |
 
-### 認證流程
-1. 用戶 Google 登入 → 取得 ID Token
-2. 前端呼叫 API → `Authorization: Bearer {token}`
-3. 後端驗證 Token → 取得 email
-4. 用 email 查詢 MongoDB → 取得 UserID
+---
+*文件更新日期: 2025-12-24*
