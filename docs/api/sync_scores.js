@@ -74,31 +74,31 @@ module.exports = async (req, res) => {
 
         // === 3. Sync ScoreBoard (all scores) ===
         if (pendingScores.length > 0) {
-            for (const score of pendingScores) {
-                const rowData = [
-                    formatSheetValue(score.userID),
-                    formatSheetValue(score.time.toFixed(3)),
-                    formatSheetValue(score.scramble),
-                    formatSheetValue(score.date),
-                    formatSheetValue(score.timestamp),
-                    formatSheetValue('Verified')
-                ];
+            // Prepare rows for all pending scores
+            const newRows = pendingScores.map(score => [
+                formatSheetValue(score.userID),
+                formatSheetValue(score.time.toFixed(3)),
+                formatSheetValue(score.scramble),
+                formatSheetValue(score.date),
+                formatSheetValue(score.timestamp),
+                formatSheetValue('Verified')
+            ]);
 
-                // Write to all 5 periods
-                for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
-                    const startColLetter = getColumnLetter(config.startCol);
-                    const endColLetter = getColumnLetter(config.endCol);
-                    const nextRow = await findNextEmptyRow(sheets, spreadsheetId, 'ScoreBoard', config.startCol);
+            // Append to all 5 periods efficiently
+            for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
+                const startColLetter = getColumnLetter(config.startCol);
+                const endColLetter = getColumnLetter(config.endCol);
 
-                    if (nextRow <= MAX_ROWS) {
-                        await sheets.spreadsheets.values.update({
-                            spreadsheetId,
-                            range: `ScoreBoard!${startColLetter}${nextRow}:${endColLetter}${nextRow}`,
-                            valueInputOption: 'USER_ENTERED',
-                            requestBody: { values: [rowData] }
-                        });
-                    }
-                }
+                // Use 'append' to add all rows at once to the specific column range
+                await sheets.spreadsheets.values.append({
+                    spreadsheetId,
+                    range: `ScoreBoard!${startColLetter}:${endColLetter}`,
+                    valueInputOption: 'USER_ENTERED',
+                    insertDataOption: 'INSERT_ROWS',
+                    requestBody: { values: newRows }
+                });
+
+                console.log(`[SYNC_SCORES] Appended ${newRows.length} rows to ScoreBoard/${periodKey}`);
             }
 
             // Mark as synced
@@ -107,7 +107,7 @@ module.exports = async (req, res) => {
                 { _id: { $in: scoreIds } },
                 { $set: { syncStatus: 'synced' } }
             );
-            console.log(`[SYNC_SCORES] Synced ${pendingScores.length} scores to ScoreBoard`);
+            console.log(`[SYNC_SCORES] marked ${pendingScores.length} scores as synced`);
         }
 
         // === 4. Sync ScoreBoardUnique (best per user per period) ===
@@ -120,45 +120,49 @@ module.exports = async (req, res) => {
             uniqueByPeriod[score.period].push(score);
         }
 
-        for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
-            // Read all unique scores for this period from MongoDB
-            const allUnique = await scoresUnique.find({ period: periodKey }).sort({ time: 1 }).toArray();
+        const periodsToUpdate = Object.keys(uniqueByPeriod);
 
-            if (allUnique.length === 0) continue;
+        if (periodsToUpdate.length > 0) {
+            for (const periodKey of periodsToUpdate) {
+                const config = PERIOD_CONFIG[periodKey];
 
-            const startColLetter = getColumnLetter(config.startCol);
-            const endColLetter = getColumnLetter(config.endCol);
+                // Read all unique scores for this period from MongoDB
+                const allUnique = await scoresUnique.find({ period: periodKey }).sort({ time: 1 }).toArray();
 
-            // Prepare rows
-            const rows = allUnique.slice(0, MAX_ROWS).map(score => [
-                formatSheetValue(score.userID),
-                formatSheetValue(score.time.toFixed(3)),
-                formatSheetValue(score.scramble || ''),
-                formatSheetValue(score.date || ''),
-                formatSheetValue(score.timestamp || ''),
-                formatSheetValue('Verified')
-            ]);
+                if (allUnique.length === 0) continue;
 
-            // Clear and write
-            await sheets.spreadsheets.values.clear({
-                spreadsheetId,
-                range: `ScoreBoardUnique!${startColLetter}:${endColLetter}`
-            });
+                const startColLetter = getColumnLetter(config.startCol);
+                const endColLetter = getColumnLetter(config.endCol);
 
-            if (rows.length > 0) {
-                await sheets.spreadsheets.values.update({
+                // Prepare rows
+                const rows = allUnique.slice(0, MAX_ROWS).map(score => [
+                    formatSheetValue(score.userID),
+                    formatSheetValue(score.time.toFixed(3)),
+                    formatSheetValue(score.scramble || ''),
+                    formatSheetValue(score.date || ''),
+                    formatSheetValue(score.timestamp || ''),
+                    formatSheetValue('Verified')
+                ]);
+
+                // Clear and write
+                await sheets.spreadsheets.values.clear({
                     spreadsheetId,
-                    range: `ScoreBoardUnique!${startColLetter}1`,
-                    valueInputOption: 'USER_ENTERED',
-                    requestBody: { values: rows }
+                    range: `ScoreBoardUnique!${startColLetter}:${endColLetter}`
                 });
+
+                if (rows.length > 0) {
+                    await sheets.spreadsheets.values.update({
+                        spreadsheetId,
+                        range: `ScoreBoardUnique!${startColLetter}1`,
+                        valueInputOption: 'USER_ENTERED',
+                        requestBody: { values: rows }
+                    });
+                }
+
+                console.log(`[SYNC_SCORES] ScoreBoardUnique/${periodKey}: ${rows.length} rows`);
             }
 
-            console.log(`[SYNC_SCORES] ScoreBoardUnique/${periodKey}: ${rows.length} rows`);
-        }
-
-        // Mark unique as synced
-        if (pendingUnique.length > 0) {
+            // Mark unique as synced
             const uniqueIds = pendingUnique.map(s => s._id);
             await scoresUnique.updateMany(
                 { _id: { $in: uniqueIds } },
@@ -167,97 +171,104 @@ module.exports = async (req, res) => {
         }
 
         // === 5. Update FrontEndScoreBoard ===
-        // Read the already-written ScoreBoard ranges, map userID->nickname, then write FrontEnd sheets
-        for (const [periodKey, frontConfig] of Object.entries(FRONTEND_PERIOD_CONFIG)) {
-            const config = PERIOD_CONFIG[periodKey];
+        // Only if ScoreBoard changed (pendingScores > 0)
+        if (pendingScores.length > 0) {
+            // Read the already-written ScoreBoard ranges, map userID->nickname, then write FrontEnd sheets
+            for (const [periodKey, frontConfig] of Object.entries(FRONTEND_PERIOD_CONFIG)) {
+                const config = PERIOD_CONFIG[periodKey];
 
-            const startColLetter = getColumnLetter(config.startCol);
-            const endColLetter = getColumnLetter(config.endCol);
+                const startColLetter = getColumnLetter(config.startCol);
+                const endColLetter = getColumnLetter(config.endCol);
 
-            // Read ScoreBoard columns for this period (UserID, Time, Scramble, Date, Timestamp, Status)
-            const resp = await sheets.spreadsheets.values.get({
-                spreadsheetId,
-                range: `ScoreBoard!${startColLetter}:${endColLetter}`
-            });
-
-            const rows = resp.data.values || [];
-
-            // Transform to FrontEnd rows: Nickname, Time, Scramble, Date, Timestamp
-            const frontEndRows = rows.slice(0, MAX_ROWS).map(r => {
-                const userId = (r[0] || '').toString();
-                const nickname = userMap[userId] || `ID:${userId}`;
-                return [
-                    formatSheetValue(nickname),
-                    formatSheetValue((r[1] || '').replace(/^'/, '')),
-                    formatSheetValue(r[2] || ''),
-                    formatSheetValue(r[3] || ''),
-                    formatSheetValue(r[4] || '')
-                ];
-            });
-
-            const frontStartCol = getColumnLetter(frontConfig.startCol);
-            const frontEndCol = getColumnLetter(frontConfig.startCol + 4);
-
-            await sheets.spreadsheets.values.clear({
-                spreadsheetId,
-                range: `FrontEndScoreBoard!${frontStartCol}:${frontEndCol}`
-            });
-
-            if (frontEndRows.length > 0) {
-                await sheets.spreadsheets.values.update({
+                // Read ScoreBoard columns for this period (UserID, Time, Scramble, Date, Timestamp, Status)
+                const resp = await sheets.spreadsheets.values.get({
                     spreadsheetId,
-                    range: `FrontEndScoreBoard!${frontStartCol}1`,
-                    valueInputOption: 'USER_ENTERED',
-                    requestBody: { values: frontEndRows }
+                    range: `ScoreBoard!${startColLetter}:${endColLetter}`
                 });
+
+                const rows = resp.data.values || [];
+
+                // Transform to FrontEnd rows: Nickname, Time, Scramble, Date, Timestamp
+                const frontEndRows = rows.slice(0, MAX_ROWS).map(r => {
+                    const userId = (r[0] || '').toString();
+                    const nickname = userMap[userId] || `ID:${userId}`;
+                    return [
+                        formatSheetValue(nickname),
+                        formatSheetValue((r[1] || '').replace(/^'/, '')),
+                        formatSheetValue(r[2] || ''),
+                        formatSheetValue(r[3] || ''),
+                        formatSheetValue(r[4] || '')
+                    ];
+                });
+
+                const frontStartCol = getColumnLetter(frontConfig.startCol);
+                const frontEndCol = getColumnLetter(frontConfig.startCol + 4);
+
+                await sheets.spreadsheets.values.clear({
+                    spreadsheetId,
+                    range: `FrontEndScoreBoard!${frontStartCol}:${frontEndCol}`
+                });
+
+                if (frontEndRows.length > 0) {
+                    await sheets.spreadsheets.values.update({
+                        spreadsheetId,
+                        range: `FrontEndScoreBoard!${frontStartCol}1`,
+                        valueInputOption: 'USER_ENTERED',
+                        requestBody: { values: frontEndRows }
+                    });
+                }
+                console.log(`[SYNC_SCORES] FrontEndScoreBoard/${periodKey}: ${frontEndRows.length} rows`);
             }
-            console.log(`[SYNC_SCORES] FrontEndScoreBoard/${periodKey}: ${frontEndRows.length} rows`);
         }
 
         // === 6. Update FrontEndScoreBoardUnique ===
-        for (const [periodKey, frontConfig] of Object.entries(FRONTEND_PERIOD_CONFIG)) {
-            const config = PERIOD_CONFIG[periodKey];
+        // Only if ScoreBoardUnique changed (periodsToUpdate > 0)
+        if (periodsToUpdate.length > 0) {
+            for (const periodKey of periodsToUpdate) {
+                const frontConfig = FRONTEND_PERIOD_CONFIG[periodKey];
+                const config = PERIOD_CONFIG[periodKey];
 
-            const startColLetter = getColumnLetter(config.startCol);
-            const endColLetter = getColumnLetter(config.endCol);
+                const startColLetter = getColumnLetter(config.startCol);
+                const endColLetter = getColumnLetter(config.endCol);
 
-            // Read ScoreBoardUnique columns for this period
-            const resp = await sheets.spreadsheets.values.get({
-                spreadsheetId,
-                range: `ScoreBoardUnique!${startColLetter}:${endColLetter}`
-            });
-
-            const rows = resp.data.values || [];
-
-            const frontEndRows = rows.slice(0, MAX_ROWS).map(r => {
-                const userId = (r[0] || '').toString();
-                const nickname = userMap[userId] || `ID:${userId}`;
-                return [
-                    formatSheetValue(nickname),
-                    formatSheetValue((r[1] || '').replace(/^'/, '')),
-                    formatSheetValue(r[2] || ''),
-                    formatSheetValue(r[3] || ''),
-                    formatSheetValue(r[4] || '')
-                ];
-            });
-
-            const frontStartCol = getColumnLetter(frontConfig.startCol);
-            const frontEndCol = getColumnLetter(frontConfig.startCol + 4);
-
-            await sheets.spreadsheets.values.clear({
-                spreadsheetId,
-                range: `FrontEndScoreBoardUnique!${frontStartCol}:${frontEndCol}`
-            });
-
-            if (frontEndRows.length > 0) {
-                await sheets.spreadsheets.values.update({
+                // Read ScoreBoardUnique columns for this period
+                const resp = await sheets.spreadsheets.values.get({
                     spreadsheetId,
-                    range: `FrontEndScoreBoardUnique!${frontStartCol}1`,
-                    valueInputOption: 'USER_ENTERED',
-                    requestBody: { values: frontEndRows }
+                    range: `ScoreBoardUnique!${startColLetter}:${endColLetter}`
                 });
+
+                const rows = resp.data.values || [];
+
+                const frontEndRows = rows.slice(0, MAX_ROWS).map(r => {
+                    const userId = (r[0] || '').toString();
+                    const nickname = userMap[userId] || `ID:${userId}`;
+                    return [
+                        formatSheetValue(nickname),
+                        formatSheetValue((r[1] || '').replace(/^'/, '')),
+                        formatSheetValue(r[2] || ''),
+                        formatSheetValue(r[3] || ''),
+                        formatSheetValue(r[4] || '')
+                    ];
+                });
+
+                const frontStartCol = getColumnLetter(frontConfig.startCol);
+                const frontEndCol = getColumnLetter(frontConfig.startCol + 4);
+
+                await sheets.spreadsheets.values.clear({
+                    spreadsheetId,
+                    range: `FrontEndScoreBoardUnique!${frontStartCol}:${frontEndCol}`
+                });
+
+                if (frontEndRows.length > 0) {
+                    await sheets.spreadsheets.values.update({
+                        spreadsheetId,
+                        range: `FrontEndScoreBoardUnique!${frontStartCol}1`,
+                        valueInputOption: 'USER_ENTERED',
+                        requestBody: { values: frontEndRows }
+                    });
+                }
+                console.log(`[SYNC_SCORES] FrontEndScoreBoardUnique/${periodKey}: ${frontEndRows.length} rows`);
             }
-            console.log(`[SYNC_SCORES] FrontEndScoreBoardUnique/${periodKey}: ${frontEndRows.length} rows`);
         }
 
         // === 7. Return Success ===
