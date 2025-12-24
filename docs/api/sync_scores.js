@@ -133,16 +133,16 @@ module.exports = async (req, res) => {
 
         // === 5. Sync ScoreBoardUnique (Sheet-Based Logic) ===
         // We read the existing sheet, merge pending scores, and write back.
-        // This allows us to delete history from MongoDB but keep the Leaderboard.
+        // We start from Row 1 as requested by user.
 
         for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
-            // A. Read Existing Data (Row 2+)
+            // A. Read Existing Data (Row 1+)
             const startColLetter = getColumnLetter(config.startCol);
             const endColLetter = getColumnLetter(config.endCol);
 
             const sheetResp = await sheets.spreadsheets.values.get({
                 spreadsheetId,
-                range: `ScoreBoardUnique!${startColLetter}2:${endColLetter}`
+                range: `ScoreBoardUnique!${startColLetter}:${endColLetter}`
             });
 
             const uniqueMap = new Map();
@@ -166,8 +166,6 @@ module.exports = async (req, res) => {
             });
 
             // Merge Pending Scores (Keep Best)
-            // Note: Simplification - we apply all pending scores to all periods.
-            // Ideally we'd check dates for 'today'/'week' etc, but for now we assume validity or strict-append.
             for (const score of pendingScores) {
                 const userID = score.userID.toString();
                 const time = score.time;
@@ -193,7 +191,7 @@ module.exports = async (req, res) => {
             // B. Write Back to ScoreBoardUnique
             await sheets.spreadsheets.values.clear({
                 spreadsheetId,
-                range: `ScoreBoardUnique!${startColLetter}2:${endColLetter}`
+                range: `ScoreBoardUnique!${startColLetter}:${endColLetter}`
             });
 
             if (sortedUnique.length > 0) {
@@ -208,7 +206,7 @@ module.exports = async (req, res) => {
 
                 await sheets.spreadsheets.values.update({
                     spreadsheetId,
-                    range: `ScoreBoardUnique!${startColLetter}2`,
+                    range: `ScoreBoardUnique!${startColLetter}1`,
                     valueInputOption: 'USER_ENTERED',
                     requestBody: { values: rows }
                 });
@@ -222,7 +220,7 @@ module.exports = async (req, res) => {
 
             await sheets.spreadsheets.values.clear({
                 spreadsheetId,
-                range: `FrontEndScoreBoardUnique!${frontStartCol}2:${frontEndCol}`
+                range: `FrontEndScoreBoardUnique!${frontStartCol}:${frontEndCol}`
             });
 
             if (sortedUnique.length > 0) {
@@ -239,7 +237,7 @@ module.exports = async (req, res) => {
 
                 await sheets.spreadsheets.values.update({
                     spreadsheetId,
-                    range: `FrontEndScoreBoardUnique!${frontStartCol}2`,
+                    range: `FrontEndScoreBoardUnique!${frontStartCol}1`,
                     valueInputOption: 'USER_ENTERED',
                     requestBody: { values: frontRows }
                 });
