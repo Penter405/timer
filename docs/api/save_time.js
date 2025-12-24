@@ -106,24 +106,26 @@ module.exports = async (req, res) => {
                         scramble: scramble || '',
                         date: formatDate(timestamp),
                         timestamp: formatTime(timestamp),
-                        createdAt: timestamp
+                        createdAt: timestamp,
+                        syncStatus: 'pending' // Only pending on creation
                     },
                     $set: {
-                        syncStatus: 'pending',
+                        // REMOVED syncStatus: 'pending' from here to avoid flagging non-PBs
                         updatedAt: timestamp
                     }
                 },
                 { upsert: true }
             );
 
-            // If this time is better, also update scramble/date/timestamp
+            // If this time is better (or equal best), also update scramble/date/timestamp AND flag for sync
             const existing = await scoresUnique.findOne(uniqueKey);
             if (existing && existing.time === timeInSeconds) {
                 await scoresUnique.updateOne(uniqueKey, {
                     $set: {
                         scramble: scramble || '',
                         date: formatDate(timestamp),
-                        timestamp: formatTime(timestamp)
+                        timestamp: formatTime(timestamp),
+                        syncStatus: 'pending' // Flag as pending because it's a PB
                     }
                 });
             }

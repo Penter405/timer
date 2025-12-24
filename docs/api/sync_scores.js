@@ -94,19 +94,18 @@ module.exports = async (req, res) => {
                     spreadsheetId,
                     range: `ScoreBoard!${startColLetter}:${endColLetter}`,
                     valueInputOption: 'USER_ENTERED',
-                    insertDataOption: 'INSERT_ROWS',
                     requestBody: { values: newRows }
                 });
 
                 console.log(`[SYNC_SCORES] Appended ${newRows.length} rows to ScoreBoard/${periodKey}`);
             }
 
-            // Mark as synced
+            // Delete synced scores from MongoDB (as they are now in Sheets)
             const scoreIds = pendingScores.map(s => s._id);
-            await scores.updateMany(
-                { _id: { $in: scoreIds } },
-                { $set: { syncStatus: 'synced' } }
+            await scores.deleteMany(
+                { _id: { $in: scoreIds } }
             );
+            console.log(`[SYNC_SCORES] Deleted ${pendingScores.length} synced scores from MongoDB`);
             console.log(`[SYNC_SCORES] marked ${pendingScores.length} scores as synced`);
         }
 
@@ -126,8 +125,11 @@ module.exports = async (req, res) => {
             for (const periodKey of periodsToUpdate) {
                 const config = PERIOD_CONFIG[periodKey];
 
-                // Read all unique scores for this period from MongoDB
-                const allUnique = await scoresUnique.find({ period: periodKey }).sort({ time: 1 }).toArray();
+                // Read all unique scores for this period from MongoDB, keep Top 1000 best times
+                const allUnique = await scoresUnique.find({ period: periodKey })
+                    .sort({ time: 1 })
+                    .limit(1000)
+                    .toArray();
 
                 if (allUnique.length === 0) continue;
 

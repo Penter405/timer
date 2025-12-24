@@ -71,6 +71,7 @@
 | 本日 (today) | Y-AD |
 
 每組欄位格式：`UserID | Time(秒) | Scramble | Date | Timestamp | Status`
+每組欄位格式(with "FrontEnd" word in the sheet)：`nickname(from MongoDB ,use UserID to search nickname) | Time(秒) | Scramble | Date | Timestamp`
 
 ---
 
