@@ -72,7 +72,7 @@ module.exports = async (req, res) => {
         }
 
         if (pendingScores.length > 0) {
-            // === 3. Sync ScoreBoard (Backend History) ===
+            // === 3. Sync ScoreBoard (Backend History) - Top 1000 Solves (Global Best) ===
             const newRows = pendingScores.map(score => [
                 formatSheetValue(score.userID),
                 formatSheetValue(score.time.toFixed(3)),
@@ -85,19 +85,44 @@ module.exports = async (req, res) => {
             for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
                 const startColLetter = getColumnLetter(config.startCol);
                 const endColLetter = getColumnLetter(config.endCol);
-                const nextRow = await findNextEmptyRow(sheets, spreadsheetId, 'ScoreBoard', config.startCol);
-                const endRow = nextRow + newRows.length - 1;
+
+                // 1. Read Existing History
+                const sheetResp = await sheets.spreadsheets.values.get({
+                    spreadsheetId,
+                    range: `ScoreBoard!${startColLetter}:${endColLetter}`
+                });
+                const existingRows = sheetResp.data.values || [];
+
+                // 2. Append New
+                const combinedRows = existingRows.concat(newRows);
+
+                // 3. Sort by Time (Ascending) & Cap at 1000
+                const finalRows = combinedRows
+                    .sort((a, b) => {
+                        const timeA = parseFloat(a[1]);
+                        const timeB = parseFloat(b[1]);
+                        if (isNaN(timeA)) return 1; // Check invalid/header
+                        if (isNaN(timeB)) return -1;
+                        return timeA - timeB;
+                    })
+                    .slice(0, MAX_ROWS);
+
+                // 4. Overwrite
+                await sheets.spreadsheets.values.clear({
+                    spreadsheetId,
+                    range: `ScoreBoard!${startColLetter}:${endColLetter}`
+                });
 
                 await sheets.spreadsheets.values.update({
                     spreadsheetId,
-                    range: `ScoreBoard!${startColLetter}${nextRow}:${endColLetter}${endRow}`,
+                    range: `ScoreBoard!${startColLetter}1`,
                     valueInputOption: 'USER_ENTERED',
-                    requestBody: { values: newRows }
+                    requestBody: { values: finalRows }
                 });
-                console.log(`[SYNC_SCORES] Wrote ${newRows.length} rows to ScoreBoard/${periodKey}`);
+                console.log(`[SYNC_SCORES] ScoreBoard/${periodKey}: Updated Top ${finalRows.length} rows`);
             }
 
-            // === 4. Sync FrontEndScoreBoard (Frontend History with Names) ===
+            // === 4. Sync FrontEndScoreBoard (Frontend History) - Top 1000 Solves ===
             const frontEndRows = pendingScores.map(score => {
                 const userId = (score.userID || '').toString();
                 const nickname = userMap[userId] || `ID:${userId}`;
@@ -113,19 +138,39 @@ module.exports = async (req, res) => {
             for (const [periodKey, frontConfig] of Object.entries(FRONTEND_PERIOD_CONFIG)) {
                 const startColLetter = getColumnLetter(frontConfig.startCol);
                 const endColLetter = getColumnLetter(frontConfig.startCol + 4);
-                const nextRow = await findNextEmptyRow(sheets, spreadsheetId, 'FrontEndScoreBoard', frontConfig.startCol);
-                const endRow = nextRow + frontEndRows.length - 1;
+
+                const sheetResp = await sheets.spreadsheets.values.get({
+                    spreadsheetId,
+                    range: `FrontEndScoreBoard!${startColLetter}:${endColLetter}`
+                });
+                const existingRows = sheetResp.data.values || [];
+                const combinedRows = existingRows.concat(frontEndRows);
+
+                // Sort by Time (Ascending) & Cap at 1000
+                const finalRows = combinedRows
+                    .sort((a, b) => {
+                        const timeA = parseFloat(a[1]);
+                        const timeB = parseFloat(b[1]);
+                        if (isNaN(timeA)) return 1;
+                        if (isNaN(timeB)) return -1;
+                        return timeA - timeB;
+                    })
+                    .slice(0, MAX_ROWS);
+
+                await sheets.spreadsheets.values.clear({
+                    spreadsheetId,
+                    range: `FrontEndScoreBoard!${startColLetter}:${endColLetter}`
+                });
 
                 await sheets.spreadsheets.values.update({
                     spreadsheetId,
-                    range: `FrontEndScoreBoard!${startColLetter}${nextRow}:${endColLetter}${endRow}`,
+                    range: `FrontEndScoreBoard!${startColLetter}1`,
                     valueInputOption: 'USER_ENTERED',
-                    requestBody: { values: frontEndRows }
+                    requestBody: { values: finalRows }
                 });
             }
 
             // === CRITICAL: Delete from MongoDB immediately after History Sync ===
-            // This prevents duplicate history entries if the script crashes later (e.g. during Unique sync)
             const scoreIds = pendingScores.map(s => s._id);
             await scores.deleteMany({ _id: { $in: scoreIds } });
             console.log(`[SYNC_SCORES] Deleted ${scoreIds.length} scores from MongoDB (Anti-Duplication)`);
