@@ -84,20 +84,26 @@ module.exports = async (req, res) => {
                 formatSheetValue('Verified')
             ]);
 
-            // Append to all 5 periods efficiently
+            // Append to all 5 periods efficiently using calculated rows
             for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
                 const startColLetter = getColumnLetter(config.startCol);
                 const endColLetter = getColumnLetter(config.endCol);
 
-                // Use 'append' to add all rows at once to the specific column range
-                await sheets.spreadsheets.values.append({
+                // Find the next empty row specifically for this column group
+                // This ensures independent vertical growth for each period (no staircasing)
+                const nextRow = await findNextEmptyRow(sheets, spreadsheetId, 'ScoreBoard', config.startCol);
+
+                // Calculate end row for the batch
+                const endRow = nextRow + newRows.length - 1;
+
+                await sheets.spreadsheets.values.update({
                     spreadsheetId,
-                    range: `ScoreBoard!${startColLetter}:${endColLetter}`,
+                    range: `ScoreBoard!${startColLetter}${nextRow}:${endColLetter}${endRow}`,
                     valueInputOption: 'USER_ENTERED',
                     requestBody: { values: newRows }
                 });
 
-                console.log(`[SYNC_SCORES] Appended ${newRows.length} rows to ScoreBoard/${periodKey}`);
+                console.log(`[SYNC_SCORES] Wrote ${newRows.length} rows to ScoreBoard/${periodKey} at row ${nextRow}`);
             }
 
             // Delete synced scores from MongoDB (as they are now in Sheets)
@@ -115,7 +121,7 @@ module.exports = async (req, res) => {
 
         for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
             // A. Update ScoreBoardUnique (Backend Sheet)
-            // Read all unique scores for this period from MongoDB, keep Top 1000 best times
+            // Read all unique scores for this period from MongoDB, keep Top 1000 best times (DELETE WORST logic)
             const allUnique = await scoresUnique.find({ period: periodKey })
                 .sort({ time: 1 })
                 .limit(1000)
