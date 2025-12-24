@@ -88,49 +88,10 @@ module.exports = async (req, res) => {
         await scores.insertOne(scoreDocument);
         console.log(`[SAVE_TIME] Saved to scores: UserID ${user.userID}, Time ${timeInSeconds}`);
 
-        // === 6. Update scores_unique for each period ===
-        // Only update if this is a better (faster) time
-        const periods = ['all', 'year', 'month', 'week', 'today'];
-
-        for (const period of periods) {
-            const uniqueKey = { userID: user.userID, period };
-
-            // Use findOneAndUpdate with $min to atomically keep the best time
-            await scoresUnique.findOneAndUpdate(
-                uniqueKey,
-                {
-                    $min: { time: timeInSeconds },  // Only update if new time is lower
-                    $setOnInsert: {
-                        userID: user.userID,
-                        period,
-                        scramble: scramble || '',
-                        date: formatDate(timestamp),
-                        timestamp: formatTime(timestamp),
-                        createdAt: timestamp,
-                        syncStatus: 'pending' // Only pending on creation
-                    },
-                    $set: {
-                        // REMOVED syncStatus: 'pending' from here to avoid flagging non-PBs
-                        updatedAt: timestamp
-                    }
-                },
-                { upsert: true }
-            );
-
-            // If this time is better (or equal best), also update scramble/date/timestamp AND flag for sync
-            const existing = await scoresUnique.findOne(uniqueKey);
-            if (existing && existing.time === timeInSeconds) {
-                await scoresUnique.updateOne(uniqueKey, {
-                    $set: {
-                        scramble: scramble || '',
-                        date: formatDate(timestamp),
-                        timestamp: formatTime(timestamp),
-                        syncStatus: 'pending' // Flag as pending because it's a PB
-                    }
-                });
-            }
-        }
-        console.log(`[SAVE_TIME] Updated scores_unique for all 5 periods`);
+        // === 6. (Removed) Update scores_unique ===
+        // We now rely on 'sync_scores.js' to calculate uniqueness based on the Sheet data.
+        // This keeps MongoDB clean with only one 'scores' collection.
+        // console.log(`[SAVE_TIME] Saved to scores (History Only)`);
 
         // === 7. Return Success ===
         sendSuccess(res, {

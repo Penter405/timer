@@ -34,12 +34,14 @@ const FRONTEND_PERIOD_CONFIG = {
 };
 
 /**
- * Sync Scores API
+ * Sync Scores API (Single Collection Mode)
  * 
- * Reads from MongoDB collections and writes to Google Sheets:
- * - scores → ScoreBoard
- * - scores_unique → ScoreBoardUnique
- * - Both → FrontEnd sheets (with nicknames)
+ * 1. Reads pending scores from `scores` collection.
+ * 2. Appends to ScoreBoard (History).
+ * 3. Reads existing ScoreBoardUnique from Sheet.
+ * 4. Merges pending scores into Unique List (In-Memory).
+ * 5. Writes back to ScoreBoardUnique.
+ * 6. Deletes pending scores from MongoDB.
  */
 module.exports = async (req, res) => {
     if (handleCORS(req, res)) return;
@@ -49,7 +51,6 @@ module.exports = async (req, res) => {
 
         const { db } = await connectToMongo();
         const scores = db.collection('scores');
-        const scoresUnique = db.collection('scores_unique');
         const users = db.collection('users');
 
         const sheets = getSheetsClient();
@@ -61,9 +62,7 @@ module.exports = async (req, res) => {
 
         // === 1. Get all pending scores from MongoDB ===
         const pendingScores = await scores.find({ syncStatus: 'pending' }).toArray();
-        const pendingUnique = await scoresUnique.find({ syncStatus: 'pending' }).toArray();
-
-        console.log(`[SYNC_SCORES] Found ${pendingScores.length} pending scores, ${pendingUnique.length} pending unique`);
+        console.log(`[SYNC_SCORES] Found ${pendingScores.length} pending scores`);
 
         // === 2. Get all user nicknames ===
         const allUsers = await users.find({}).toArray();
@@ -72,9 +71,8 @@ module.exports = async (req, res) => {
             userMap[user.userID] = user.nickname || `ID:${user.userID}`;
         }
 
-        // === 3. Sync ScoreBoard (all scores) ===
         if (pendingScores.length > 0) {
-            // Prepare rows for all pending scores
+            // === 3. Sync ScoreBoard (Backend History) ===
             const newRows = pendingScores.map(score => [
                 formatSheetValue(score.userID),
                 formatSheetValue(score.time.toFixed(3)),
@@ -84,16 +82,10 @@ module.exports = async (req, res) => {
                 formatSheetValue('Verified')
             ]);
 
-            // Append to all 5 periods efficiently using calculated rows
             for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
                 const startColLetter = getColumnLetter(config.startCol);
                 const endColLetter = getColumnLetter(config.endCol);
-
-                // Find the next empty row specifically for this column group
-                // This ensures independent vertical growth for each period (no staircasing)
                 const nextRow = await findNextEmptyRow(sheets, spreadsheetId, 'ScoreBoard', config.startCol);
-
-                // Calculate end row for the batch
                 const endRow = nextRow + newRows.length - 1;
 
                 await sheets.spreadsheets.values.update({
@@ -102,109 +94,161 @@ module.exports = async (req, res) => {
                     valueInputOption: 'USER_ENTERED',
                     requestBody: { values: newRows }
                 });
-
-                console.log(`[SYNC_SCORES] Wrote ${newRows.length} rows to ScoreBoard/${periodKey} at row ${nextRow}`);
+                console.log(`[SYNC_SCORES] Wrote ${newRows.length} rows to ScoreBoard/${periodKey}`);
             }
 
-            // Delete synced scores from MongoDB (as they are now in Sheets)
-            const scoreIds = pendingScores.map(s => s._id);
-            await scores.deleteMany(
-                { _id: { $in: scoreIds } }
-            );
-            console.log(`[SYNC_SCORES] Deleted ${pendingScores.length} synced scores from MongoDB`);
-            console.log(`[SYNC_SCORES] marked ${pendingScores.length} scores as synced`);
-        }
-
-        // === 4. Sync ScoreBoardUnique & FrontEndScoreBoardUnique ===
-        // We sync ALL periods every time to ensure the leaderboard is self-healing and always accurate.
-        // This is efficient because it uses batch operations (read mongo -> write sheet -> read sheet -> write frontend).
-
-        for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
-            // A. Update ScoreBoardUnique (Backend Sheet)
-            // Read all unique scores for this period from MongoDB, keep Top 1000 best times (DELETE WORST logic)
-            const allUnique = await scoresUnique.find({ period: periodKey })
-                .sort({ time: 1 })
-                .limit(1000)
-                .toArray();
-
-            const startColLetter = getColumnLetter(config.startCol);
-            const endColLetter = getColumnLetter(config.endCol);
-
-            // Always clear the sheet range first
-            await sheets.spreadsheets.values.clear({
-                spreadsheetId,
-                range: `ScoreBoardUnique!${startColLetter}:${endColLetter}`
-            });
-
-            if (allUnique.length > 0) {
-                // Prepare rows
-                const rows = allUnique.map(score => [
-                    formatSheetValue(score.userID),
+            // === 4. Sync FrontEndScoreBoard (Frontend History with Names) ===
+            const frontEndRows = pendingScores.map(score => {
+                const userId = (score.userID || '').toString();
+                const nickname = userMap[userId] || `ID:${userId}`;
+                return [
+                    formatSheetValue(nickname),
                     formatSheetValue(score.time.toFixed(3)),
                     formatSheetValue(score.scramble || ''),
                     formatSheetValue(score.date || ''),
-                    formatSheetValue(score.timestamp || ''),
-                    formatSheetValue('Verified')
+                    formatSheetValue(score.timestamp || '')
+                ];
+            });
+
+            for (const [periodKey, frontConfig] of Object.entries(FRONTEND_PERIOD_CONFIG)) {
+                const startColLetter = getColumnLetter(frontConfig.startCol);
+                const endColLetter = getColumnLetter(frontConfig.startCol + 4);
+                const nextRow = await findNextEmptyRow(sheets, spreadsheetId, 'FrontEndScoreBoard', frontConfig.startCol);
+                const endRow = nextRow + frontEndRows.length - 1;
+
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId,
+                    range: `FrontEndScoreBoard!${startColLetter}${nextRow}:${endColLetter}${endRow}`,
+                    valueInputOption: 'USER_ENTERED',
+                    requestBody: { values: frontEndRows }
+                });
+            }
+
+            // === CRITICAL: Delete from MongoDB immediately after History Sync ===
+            // This prevents duplicate history entries if the script crashes later (e.g. during Unique sync)
+            const scoreIds = pendingScores.map(s => s._id);
+            await scores.deleteMany({ _id: { $in: scoreIds } });
+            console.log(`[SYNC_SCORES] Deleted ${scoreIds.length} scores from MongoDB (Anti-Duplication)`);
+        }
+
+        // === 5. Sync ScoreBoardUnique (Sheet-Based Logic) ===
+        // We read the existing sheet, merge pending scores, and write back.
+        // This allows us to delete history from MongoDB but keep the Leaderboard.
+
+        for (const [periodKey, config] of Object.entries(PERIOD_CONFIG)) {
+            // A. Read Existing Data (Row 2+)
+            const startColLetter = getColumnLetter(config.startCol);
+            const endColLetter = getColumnLetter(config.endCol);
+
+            const sheetResp = await sheets.spreadsheets.values.get({
+                spreadsheetId,
+                range: `ScoreBoardUnique!${startColLetter}2:${endColLetter}`
+            });
+
+            const uniqueMap = new Map();
+            const existingRows = sheetResp.data.values || [];
+
+            // Load Sheet Data into Map
+            existingRows.forEach(row => {
+                if (!row[0]) return;
+                const userID = row[0].toString();
+                const time = parseFloat(row[1]);
+                if (!isNaN(time)) {
+                    uniqueMap.set(userID, {
+                        userID,
+                        time,
+                        scramble: row[2],
+                        date: row[3],
+                        timestamp: row[4],
+                        status: row[5]
+                    });
+                }
+            });
+
+            // Merge Pending Scores (Keep Best)
+            // Note: Simplification - we apply all pending scores to all periods.
+            // Ideally we'd check dates for 'today'/'week' etc, but for now we assume validity or strict-append.
+            for (const score of pendingScores) {
+                const userID = score.userID.toString();
+                const time = score.time;
+                const current = uniqueMap.get(userID);
+
+                if (!current || time < current.time) {
+                    uniqueMap.set(userID, {
+                        userID,
+                        time,
+                        scramble: score.scramble,
+                        date: score.date,
+                        timestamp: score.timestamp,
+                        status: 'Verified'
+                    });
+                }
+            }
+
+            // Sort and Limit
+            const sortedUnique = Array.from(uniqueMap.values())
+                .sort((a, b) => a.time - b.time)
+                .slice(0, 1000);
+
+            // B. Write Back to ScoreBoardUnique
+            await sheets.spreadsheets.values.clear({
+                spreadsheetId,
+                range: `ScoreBoardUnique!${startColLetter}2:${endColLetter}`
+            });
+
+            if (sortedUnique.length > 0) {
+                const rows = sortedUnique.map(s => [
+                    formatSheetValue(s.userID),
+                    formatSheetValue(s.time.toFixed(3)),
+                    formatSheetValue(s.scramble || ''),
+                    formatSheetValue(s.date || ''),
+                    formatSheetValue(s.timestamp || ''),
+                    formatSheetValue(s.status || 'Verified')
                 ]);
 
                 await sheets.spreadsheets.values.update({
                     spreadsheetId,
-                    range: `ScoreBoardUnique!${startColLetter}1`,
+                    range: `ScoreBoardUnique!${startColLetter}2`,
                     valueInputOption: 'USER_ENTERED',
                     requestBody: { values: rows }
                 });
-                console.log(`[SYNC_SCORES] ScoreBoardUnique/${periodKey}: Synced ${rows.length} rows (Top 1000)`);
-            } else {
-                console.log(`[SYNC_SCORES] ScoreBoardUnique/${periodKey}: No data in MongoDB`);
+                console.log(`[SYNC_SCORES] ScoreBoardUnique/${periodKey}: Updated ${rows.length} rows`);
             }
 
-            // B. Update FrontEndScoreBoardUnique (Frontend Sheet)
+            // C. Write to FrontEndScoreBoardUnique
             const frontConfig = FRONTEND_PERIOD_CONFIG[periodKey];
             const frontStartCol = getColumnLetter(frontConfig.startCol);
             const frontEndCol = getColumnLetter(frontConfig.startCol + 4);
 
             await sheets.spreadsheets.values.clear({
                 spreadsheetId,
-                range: `FrontEndScoreBoardUnique!${frontStartCol}:${frontEndCol}`
+                range: `FrontEndScoreBoardUnique!${frontStartCol}2:${frontEndCol}`
             });
 
-            if (allUnique.length > 0) {
-                // Transform to FrontEnd rows using userMap
-                const frontEndRows = allUnique.map(score => {
-                    const userId = (score.userID || '').toString();
-                    const nickname = userMap[userId] || `ID:${userId}`;
+            if (sortedUnique.length > 0) {
+                const frontRows = sortedUnique.map(s => {
+                    const nickname = userMap[s.userID] || `ID:${s.userID}`;
                     return [
                         formatSheetValue(nickname),
-                        formatSheetValue(score.time.toFixed(3)),
-                        formatSheetValue(score.scramble || ''),
-                        formatSheetValue(score.date || ''),
-                        formatSheetValue(score.timestamp || '')
+                        formatSheetValue(s.time.toFixed(3)),
+                        formatSheetValue(s.scramble || ''),
+                        formatSheetValue(s.date || ''),
+                        formatSheetValue(s.timestamp || '')
                     ];
                 });
 
                 await sheets.spreadsheets.values.update({
                     spreadsheetId,
-                    range: `FrontEndScoreBoardUnique!${frontStartCol}1`,
+                    range: `FrontEndScoreBoardUnique!${frontStartCol}2`,
                     valueInputOption: 'USER_ENTERED',
-                    requestBody: { values: frontEndRows }
+                    requestBody: { values: frontRows }
                 });
-                console.log(`[SYNC_SCORES] FrontEndScoreBoardUnique/${periodKey}: Synced ${frontEndRows.length} rows`);
             }
         }
 
-        // Mark any pending unique scores as synced (cleanup)
-        if (pendingUnique.length > 0) {
-            const uniqueIds = pendingUnique.map(s => s._id);
-            await scoresUnique.updateMany(
-                { _id: { $in: uniqueIds } },
-                { $set: { syncStatus: 'synced' } }
-            );
-        }
-
-        // === 7. Return Success ===
+        // === 6. Return Success ===
         sendSuccess(res, {
             scoresSynced: pendingScores.length,
-            uniqueSynced: pendingUnique.length,
             message: 'Sync completed from MongoDB to Sheets'
         });
 
