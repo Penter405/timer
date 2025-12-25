@@ -75,7 +75,7 @@
 2. **Flagging**: 設定 `total.syncFlags.nicknameUpdate = 1`。這會通知 Sync Script 下次執行時需要刷新 Frontend Sheet。
 
 ### `/api/sync_scores` (POST)
-**Smart Sync Logic** (由 cron-job 每 5 分鐘觸發)
+**Smart Sync Logic** (由 cron-job 每 1 分鐘觸發)
 
 1. **Check**: 檢查 MongoDB 是否有 `pendingScores > 0` 或 `nicknameUpdate == 1`。
 2. **Short Circuit**: 若兩者皆無，**立即結束** (節省 API Quota)。
@@ -97,6 +97,22 @@ git push origin main  # 自動部署
 git push origin main  # 自動部署
 ```
 
+## ☁️ Deployments
+
+### Active Deployments (as seen in GitHub)
+| Name | Platform | Description |
+|------|----------|-------------|
+| **github-pages** | GitHub Pages | Frontend (static assets) |
+| **Production** | Vercel | Backend (API) - Main Branch |
+| **Preview** | Vercel | Backend (API) - Pull Requests/Branches |
+
+### Deployment Methods
+- **Frontend**: Source code pushed to `main` branch. GitHub Pages is configured to serve from root.
+- **Backend**: Vercel connected to `main` branch.
+    - **Production**: Updates automatically on push to `main`.
+    - **Preview**: Updates on pull requests or non-main branches.
+- **Cron**: External service (`cron-job.org`) hits `/api/sync_scores` **every 1 minute**.
+
 ## 🔐 安全設計
 
 | 資料 | 公開性 |
@@ -106,4 +122,4 @@ git push origin main  # 自動部署
 | Google Sheets (Frontend) | ✅ 公開 (含暱稱) |
 
 ---
-*文件更新日期: 2025-12-24*
+*文件更新日期: 2025-12-25*
