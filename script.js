@@ -68,8 +68,7 @@ let inspectionReady = false;
 
 // Result Popup State
 let pendingResult = null; // { ms: number, scramble: string }
-let popupTouchValid = false; // True if popup can accept touches (a new touch started after popup shown)
-let popupTouchStartedValid = false; // Track if current touch sequence started after popup appeared
+let popupShowTime = 0; // Timestamp when popup appeared (used for 100ms delay check)
 
 // Full Mode (Touch Anywhere)
 let fullMode = false;
@@ -467,9 +466,7 @@ const resultDNFBtn = document.getElementById('resultDNF');
 
 function showResultPopup(ms, scramble) {
     pendingResult = { ms: ms, scramble: scramble };
-    // Reset touch tracking - popup just appeared, no valid touches yet
-    popupTouchValid = false;
-    popupTouchStartedValid = false;
+    popupShowTime = Date.now(); // Record when popup appeared
     popupTimeEl.textContent = fmt(ms);
     resultPopup.classList.remove('hidden');
 
@@ -483,51 +480,32 @@ function showResultPopup(ms, scramble) {
 function hideResultPopup() {
     resultPopup.classList.add('hidden');
     pendingResult = null;
-    popupTouchValid = false;
-    popupTouchStartedValid = false;
+    popupTouchStartValid = false; // Reset touch validity
     setZoomLock(false); // Unlock zoom when popup closes
 }
 
-// Track if touch started AFTER popup was shown
-// When popup shows, popupTouchValid = false
-// When user lifts finger (touchend with no fingers) and popup is visible, popupTouchValid = true
-// Only accept clicks if popupTouchStartedValid is true (touchstart happened after popup was shown)
+// Track if the current touch STARTED after popup was shown + 100ms
+// This ensures popup only accepts taps where touchstart happens after popup appears
+const POPUP_TOUCH_DELAY = 100; // ms - touchstart must happen this long after popup shows
+let popupTouchStartValid = false; // True if current touch started after popup + delay
 
-// Listen for touchstart on document to track new touches after popup appears
-// Use capture phase to receive events BEFORE stopPropagation on popup
+// Listen for touchstart to check if it happens after popup + delay
 document.addEventListener('touchstart', (e) => {
-    if (pendingResult !== null && popupTouchValid) {
-        // If popup is showing AND we've already had a touch cycle complete,
-        // then this new touchstart is valid
-        popupTouchStartedValid = true;
-    }
-}, { passive: true, capture: true });
-
-// Listen for touchend on document to mark when user lifts ALL fingers
-// Use capture phase to receive events BEFORE stopPropagation on popup
-document.addEventListener('touchend', (e) => {
-    if (pendingResult !== null && e.touches.length === 0) {
-        // User lifted all fingers while popup is showing
-        // Next touchstart will be a valid new touch
-        popupTouchValid = true;
-    }
-}, { passive: true, capture: true });
-
-// For mouse: listen for mouseup on document
-document.addEventListener('mouseup', (e) => {
     if (pendingResult !== null) {
-        popupTouchValid = true;
+        // Check if this touchstart is valid (happened after popup + delay)
+        popupTouchStartValid = (Date.now() - popupShowTime > POPUP_TOUCH_DELAY);
     }
-}, { capture: true });
+}, { passive: true, capture: true });
 
+// For mouse: check on mousedown
 document.addEventListener('mousedown', (e) => {
-    if (pendingResult !== null && popupTouchValid) {
-        popupTouchStartedValid = true;
+    if (pendingResult !== null) {
+        popupTouchStartValid = (Date.now() - popupShowTime > POPUP_TOUCH_DELAY);
     }
 }, { capture: true });
 
 function isPopupClickValid() {
-    return popupTouchStartedValid;
+    return popupTouchStartValid;
 }
 
 // Direct action functions (bypass touch validation - used by keyboard shortcuts)
@@ -591,14 +569,23 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Prevent popup clicks from bubbling to body event handlers
+// Also set touch validity on popup button touches
 resultPopup.addEventListener('mousedown', (e) => {
     e.stopPropagation();
+    // Set validity when user clicks/touches popup
+    if (pendingResult !== null) {
+        popupTouchStartValid = (Date.now() - popupShowTime > POPUP_TOUCH_DELAY);
+    }
 });
 resultPopup.addEventListener('mouseup', (e) => {
     e.stopPropagation();
 });
 resultPopup.addEventListener('touchstart', (e) => {
     e.stopPropagation();
+    // Set validity when user touches popup
+    if (pendingResult !== null) {
+        popupTouchStartValid = (Date.now() - popupShowTime > POPUP_TOUCH_DELAY);
+    }
 }, { passive: false });
 resultPopup.addEventListener('touchend', (e) => {
     e.stopPropagation();
