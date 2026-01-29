@@ -68,7 +68,8 @@ let inspectionReady = false;
 
 // Result Popup State
 let pendingResult = null; // { ms: number, scramble: string }
-let popupShowTime = 0; // Timestamp when popup appeared
+let popupTouchValid = false; // True if popup can accept touches (a new touch started after popup shown)
+let popupTouchStartedValid = false; // Track if current touch sequence started after popup appeared
 
 // Full Mode (Touch Anywhere)
 let fullMode = false;
@@ -480,19 +481,54 @@ function showResultPopup(ms, scramble) {
 function hideResultPopup() {
     resultPopup.classList.add('hidden');
     pendingResult = null;
+    popupTouchValid = false;
+    popupTouchStartedValid = false;
     setZoomLock(false); // Unlock zoom when popup closes
 }
 
-// Ignore clicks that happen too soon after popup appears (same touch event that stopped timer)
-const POPUP_CLICK_DELAY = 100; // ms - ignore clicks within this time after popup shows
+// Track if touch started AFTER popup was shown
+// When popup shows, popupTouchValid = false
+// When user lifts finger (touchend with no fingers) and popup is visible, popupTouchValid = true
+// Only accept clicks if popupTouchStartedValid is true (touchstart happened after popup was shown)
+
+// Listen for touchstart on document to track new touches after popup appears
+document.addEventListener('touchstart', (e) => {
+    if (pendingResult !== null && popupTouchValid) {
+        // If popup is showing AND we've already had a touch cycle complete,
+        // then this new touchstart is valid
+        popupTouchStartedValid = true;
+    }
+}, { passive: true });
+
+// Listen for touchend on document to mark when user lifts ALL fingers
+document.addEventListener('touchend', (e) => {
+    if (pendingResult !== null && e.touches.length === 0) {
+        // User lifted all fingers while popup is showing
+        // Next touchstart will be a valid new touch
+        popupTouchValid = true;
+    }
+}, { passive: true });
+
+// For mouse: listen for mouseup on document
+document.addEventListener('mouseup', (e) => {
+    if (pendingResult !== null) {
+        popupTouchValid = true;
+    }
+});
+
+document.addEventListener('mousedown', (e) => {
+    if (pendingResult !== null && popupTouchValid) {
+        popupTouchStartedValid = true;
+    }
+});
 
 function isPopupClickValid() {
-    return Date.now() - popupShowTime > POPUP_CLICK_DELAY;
+    return popupTouchStartedValid;
 }
 
 // OK Button: Save as-is
 resultOKBtn.addEventListener('click', () => {
-    if (!isPopupClickValid()) return; // Ignore if same touch that stopped timer
+    if (!isPopupClickValid()) return; // Ignore if touch started before popup
     if (pendingResult) {
         addTime(pendingResult.ms);
     }
@@ -501,7 +537,7 @@ resultOKBtn.addEventListener('click', () => {
 
 // +2 Button: Add 2 seconds (2000ms)
 resultPlus2Btn.addEventListener('click', () => {
-    if (!isPopupClickValid()) return; // Ignore if same touch that stopped timer
+    if (!isPopupClickValid()) return; // Ignore if touch started before popup
     if (pendingResult) {
         const adjustedMs = pendingResult.ms + 2000;
         addTime(adjustedMs);
@@ -512,7 +548,7 @@ resultPlus2Btn.addEventListener('click', () => {
 
 // DNF Button: Discard (don't save)
 resultDNFBtn.addEventListener('click', () => {
-    if (!isPopupClickValid()) return; // Ignore if same touch that stopped timer
+    if (!isPopupClickValid()) return; // Ignore if touch started before popup
     // DNF: Don't save, just close popup and reset
     hideResultPopup();
     newScramble();
