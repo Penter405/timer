@@ -19,10 +19,12 @@ git pull origin main
 ### 1. 確保連結正確
 ```bash
 git remote -v
-# 如果沒看到 origin，請執行:
-# git remote add origin https://github.com/Penter405/timer.git
-```
 
+```
+#### 如果沒看到 origin，請執行:
+```
+git remote add origin https://github.com/Penter405/timer.git
+```
 ### 2. 下載最新資料
 ```bash
 git fetch --all
