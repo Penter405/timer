@@ -68,6 +68,7 @@ let inspectionReady = false;
 
 // Result Popup State
 let pendingResult = null; // { ms: number, scramble: string }
+let popupShowTime = 0; // Timestamp when popup appeared
 
 // Full Mode (Touch Anywhere)
 let fullMode = false;
@@ -256,14 +257,22 @@ document.addEventListener('keyup', e => {
 });
 
 // Touch/Mouse Events for Button
-startBtn.addEventListener('mousedown', beginHold);
-startBtn.addEventListener('mouseup', endHold);
+startBtn.addEventListener('mousedown', (e) => {
+    if (pendingResult !== null) return; // Don't capture when popup is showing
+    beginHold();
+});
+startBtn.addEventListener('mouseup', (e) => {
+    if (pendingResult !== null) return; // Don't capture when popup is showing
+    endHold();
+});
 startBtn.addEventListener('touchstart', e => {
     e.preventDefault();
+    if (pendingResult !== null) return; // Don't capture when popup is showing
     beginHold();
 });
 startBtn.addEventListener('touchend', e => {
     e.preventDefault();
+    if (pendingResult !== null) return; // Don't capture when popup is showing
     endHold();
 });
 
@@ -371,6 +380,9 @@ toggleBtn.addEventListener('touchend', inspectionHoldEnd, { passive: false });
 
 // --- Global Touch to Start (Full support) ---
 function areaHoldStart(e) {
+    // If result popup is showing, don't handle body events
+    if (pendingResult !== null) return;
+
     // If clicking a button, ignore
     if (e.target.closest('button')) return;
 
@@ -388,6 +400,9 @@ function areaHoldStart(e) {
     // If fullMode is OFF, clicking background does NOTHING (user must use standard inputs or inspection)
 }
 function areaHoldEnd(e) {
+    // If result popup is showing, don't handle body events
+    if (pendingResult !== null) return;
+
     if (e.target.closest('button')) return;
 
     if (fullMode || holding) {
@@ -451,6 +466,7 @@ const resultDNFBtn = document.getElementById('resultDNF');
 
 function showResultPopup(ms, scramble) {
     pendingResult = { ms: ms, scramble: scramble };
+    popupShowTime = Date.now(); // Track when popup appeared
     popupTimeEl.textContent = fmt(ms);
     resultPopup.classList.remove('hidden');
 
@@ -467,8 +483,16 @@ function hideResultPopup() {
     setZoomLock(false); // Unlock zoom when popup closes
 }
 
+// Ignore clicks that happen too soon after popup appears (same touch event that stopped timer)
+const POPUP_CLICK_DELAY = 100; // ms - ignore clicks within this time after popup shows
+
+function isPopupClickValid() {
+    return Date.now() - popupShowTime > POPUP_CLICK_DELAY;
+}
+
 // OK Button: Save as-is
 resultOKBtn.addEventListener('click', () => {
+    if (!isPopupClickValid()) return; // Ignore if same touch that stopped timer
     if (pendingResult) {
         addTime(pendingResult.ms);
     }
@@ -477,6 +501,7 @@ resultOKBtn.addEventListener('click', () => {
 
 // +2 Button: Add 2 seconds (2000ms)
 resultPlus2Btn.addEventListener('click', () => {
+    if (!isPopupClickValid()) return; // Ignore if same touch that stopped timer
     if (pendingResult) {
         const adjustedMs = pendingResult.ms + 2000;
         addTime(adjustedMs);
@@ -487,6 +512,7 @@ resultPlus2Btn.addEventListener('click', () => {
 
 // DNF Button: Discard (don't save)
 resultDNFBtn.addEventListener('click', () => {
+    if (!isPopupClickValid()) return; // Ignore if same touch that stopped timer
     // DNF: Don't save, just close popup and reset
     hideResultPopup();
     newScramble();
@@ -510,6 +536,21 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+
+// Prevent popup clicks from bubbling to body event handlers
+resultPopup.addEventListener('mousedown', (e) => {
+    e.stopPropagation();
+});
+resultPopup.addEventListener('mouseup', (e) => {
+    e.stopPropagation();
+});
+resultPopup.addEventListener('touchstart', (e) => {
+    e.stopPropagation();
+}, { passive: false });
+resultPopup.addEventListener('touchend', (e) => {
+    e.stopPropagation();
+}, { passive: false });
+
 
 // --- Keyboard Settings & Shortcut Logic ---
 
