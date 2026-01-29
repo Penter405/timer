@@ -256,23 +256,19 @@ document.addEventListener('keyup', e => {
     }
 });
 
-// Touch/Mouse Events for Button
-startBtn.addEventListener('mousedown', (e) => {
+// Pointer Events for Button (works for both touch and mouse)
+startBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
     if (pendingResult !== null) return; // Don't capture when popup is showing
     beginHold();
 });
-startBtn.addEventListener('mouseup', (e) => {
+startBtn.addEventListener('pointerup', (e) => {
+    e.preventDefault();
     if (pendingResult !== null) return; // Don't capture when popup is showing
     endHold();
 });
-startBtn.addEventListener('touchstart', e => {
-    e.preventDefault();
-    if (pendingResult !== null) return; // Don't capture when popup is showing
-    beginHold();
-});
-startBtn.addEventListener('touchend', e => {
-    e.preventDefault();
-    if (pendingResult !== null) return; // Don't capture when popup is showing
+startBtn.addEventListener('pointercancel', (e) => {
+    if (pendingResult !== null) return;
     endHold();
 });
 
@@ -372,10 +368,9 @@ function inspectionHoldEnd(e) {
     // logic adjustment if needed.
 }
 
-toggleBtn.addEventListener('mousedown', inspectionHoldStart);
-toggleBtn.addEventListener('mouseup', inspectionHoldEnd);
-toggleBtn.addEventListener('touchstart', inspectionHoldStart, { passive: false });
-toggleBtn.addEventListener('touchend', inspectionHoldEnd, { passive: false });
+toggleBtn.addEventListener('pointerdown', inspectionHoldStart);
+toggleBtn.addEventListener('pointerup', inspectionHoldEnd);
+toggleBtn.addEventListener('pointercancel', inspectionHoldEnd);
 
 
 // --- Global Touch to Start (Full support) ---
@@ -410,10 +405,9 @@ function areaHoldEnd(e) {
     }
 }
 
-document.body.addEventListener('mousedown', areaHoldStart);
-document.body.addEventListener('mouseup', areaHoldEnd);
-document.body.addEventListener('touchstart', areaHoldStart, { passive: false });
-document.body.addEventListener('touchend', areaHoldEnd, { passive: false });
+document.body.addEventListener('pointerdown', areaHoldStart);
+document.body.addEventListener('pointerup', areaHoldEnd);
+document.body.addEventListener('pointercancel', areaHoldEnd);
 
 // --- Prevent Pinch Zoom During Timer/Inspection/Popup ---
 // Block multi-touch gestures when timer is active or popup is showing
@@ -480,32 +474,25 @@ function showResultPopup(ms, scramble) {
 function hideResultPopup() {
     resultPopup.classList.add('hidden');
     pendingResult = null;
-    popupTouchStartValid = false; // Reset touch validity
+    popupPointerStartValid = false; // Reset pointer validity
     setZoomLock(false); // Unlock zoom when popup closes
 }
 
-// Track if the current touch STARTED after popup was shown + 100ms
-// This ensures popup only accepts taps where touchstart happens after popup appears
-const POPUP_TOUCH_DELAY = 100; // ms - touchstart must happen this long after popup shows
-let popupTouchStartValid = false; // True if current touch started after popup + delay
+// Track if the current pointer STARTED after popup was shown + 100ms
+// This ensures popup only accepts taps where pointerdown happens after popup appears
+const POPUP_POINTER_DELAY = 100; // ms - pointerdown must happen this long after popup shows
+let popupPointerStartValid = false; // True if current pointer started after popup + delay
 
-// Listen for touchstart to check if it happens after popup + delay
-document.addEventListener('touchstart', (e) => {
+// Listen for pointerdown to check if it happens after popup + delay (document level as backup)
+document.addEventListener('pointerdown', (e) => {
     if (pendingResult !== null) {
-        // Check if this touchstart is valid (happened after popup + delay)
-        popupTouchStartValid = (Date.now() - popupShowTime > POPUP_TOUCH_DELAY);
-    }
-}, { passive: true, capture: true });
-
-// For mouse: check on mousedown
-document.addEventListener('mousedown', (e) => {
-    if (pendingResult !== null) {
-        popupTouchStartValid = (Date.now() - popupShowTime > POPUP_TOUCH_DELAY);
+        // Check if this pointerdown is valid (happened after popup + delay)
+        popupPointerStartValid = (Date.now() - popupShowTime > POPUP_POINTER_DELAY);
     }
 }, { capture: true });
 
 function isPopupClickValid() {
-    return popupTouchStartValid;
+    return popupPointerStartValid;
 }
 
 // Direct action functions (bypass touch validation - used by keyboard shortcuts)
@@ -568,28 +555,21 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Prevent popup clicks from bubbling to body event handlers
-// Also set touch validity on popup button touches
-resultPopup.addEventListener('mousedown', (e) => {
+// Prevent popup pointer events from bubbling to body event handlers
+// Check validity when user starts touching/clicking popup (pointerdown)
+resultPopup.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
-    // Set validity when user clicks/touches popup
+    // Set validity: only valid if pointerdown happens after popup + 100ms
     if (pendingResult !== null) {
-        popupTouchStartValid = (Date.now() - popupShowTime > POPUP_TOUCH_DELAY);
+        popupPointerStartValid = (Date.now() - popupShowTime > POPUP_POINTER_DELAY);
     }
 });
-resultPopup.addEventListener('mouseup', (e) => {
+resultPopup.addEventListener('pointerup', (e) => {
     e.stopPropagation();
 });
-resultPopup.addEventListener('touchstart', (e) => {
+resultPopup.addEventListener('pointercancel', (e) => {
     e.stopPropagation();
-    // Set validity when user touches popup
-    if (pendingResult !== null) {
-        popupTouchStartValid = (Date.now() - popupShowTime > POPUP_TOUCH_DELAY);
-    }
-}, { passive: false });
-resultPopup.addEventListener('touchend', (e) => {
-    e.stopPropagation();
-}, { passive: false });
+});
 
 
 // --- Keyboard Settings & Shortcut Logic ---
