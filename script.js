@@ -494,69 +494,84 @@ function hideResultPopup() {
 // Only accept clicks if popupTouchStartedValid is true (touchstart happened after popup was shown)
 
 // Listen for touchstart on document to track new touches after popup appears
+// Use capture phase to receive events BEFORE stopPropagation on popup
 document.addEventListener('touchstart', (e) => {
     if (pendingResult !== null && popupTouchValid) {
         // If popup is showing AND we've already had a touch cycle complete,
         // then this new touchstart is valid
         popupTouchStartedValid = true;
     }
-}, { passive: true });
+}, { passive: true, capture: true });
 
 // Listen for touchend on document to mark when user lifts ALL fingers
+// Use capture phase to receive events BEFORE stopPropagation on popup
 document.addEventListener('touchend', (e) => {
     if (pendingResult !== null && e.touches.length === 0) {
         // User lifted all fingers while popup is showing
         // Next touchstart will be a valid new touch
         popupTouchValid = true;
     }
-}, { passive: true });
+}, { passive: true, capture: true });
 
 // For mouse: listen for mouseup on document
 document.addEventListener('mouseup', (e) => {
     if (pendingResult !== null) {
         popupTouchValid = true;
     }
-});
+}, { capture: true });
 
 document.addEventListener('mousedown', (e) => {
     if (pendingResult !== null && popupTouchValid) {
         popupTouchStartedValid = true;
     }
-});
+}, { capture: true });
 
 function isPopupClickValid() {
     return popupTouchStartedValid;
 }
 
-// OK Button: Save as-is
-resultOKBtn.addEventListener('click', () => {
-    if (!isPopupClickValid()) return; // Ignore if touch started before popup
+// Direct action functions (bypass touch validation - used by keyboard shortcuts)
+function doResultOK() {
     if (pendingResult) {
         addTime(pendingResult.ms);
     }
     hideResultPopup();
+}
+
+function doResultPlus2() {
+    if (pendingResult) {
+        const adjustedMs = pendingResult.ms + 2000;
+        addTime(adjustedMs);
+        renderTime(adjustedMs);
+    }
+    hideResultPopup();
+}
+
+function doResultDNF() {
+    hideResultPopup();
+    newScramble();
+}
+
+// OK Button: Save as-is
+resultOKBtn.addEventListener('click', () => {
+    if (!isPopupClickValid()) return; // Ignore if touch started before popup
+    doResultOK();
 });
 
 // +2 Button: Add 2 seconds (2000ms)
 resultPlus2Btn.addEventListener('click', () => {
     if (!isPopupClickValid()) return; // Ignore if touch started before popup
-    if (pendingResult) {
-        const adjustedMs = pendingResult.ms + 2000;
-        addTime(adjustedMs);
-        renderTime(adjustedMs); // Update display to show +2 result
-    }
-    hideResultPopup();
+    doResultPlus2();
 });
 
 // DNF Button: Discard (don't save)
 resultDNFBtn.addEventListener('click', () => {
     if (!isPopupClickValid()) return; // Ignore if touch started before popup
-    // DNF: Don't save, just close popup and reset
-    hideResultPopup();
-    newScramble();
+    doResultDNF();
 });
 
 // Keyboard shortcuts for popup (O=OK, 2=+2, D=DNF)
+// These bypass touch validation since keyboard doesn't have the same timing issues
 document.addEventListener('keydown', (e) => {
     if (!resultPopup.classList.contains('hidden')) {
         // Check if confirm keyboard shortcuts are allowed
@@ -564,13 +579,13 @@ document.addEventListener('keydown', (e) => {
 
         if (e.key === 'o' || e.key === 'O' || e.key === 'Enter') {
             e.preventDefault();
-            resultOKBtn.click();
+            doResultOK(); // Direct call, bypasses touch validation
         } else if (e.key === '2') {
             e.preventDefault();
-            resultPlus2Btn.click();
+            doResultPlus2(); // Direct call, bypasses touch validation
         } else if (e.key === 'd' || e.key === 'D' || e.key === 'Escape') {
             e.preventDefault();
-            resultDNFBtn.click();
+            doResultDNF(); // Direct call, bypasses touch validation
         }
     }
 });
