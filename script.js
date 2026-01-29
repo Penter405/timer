@@ -412,7 +412,8 @@ document.body.addEventListener('pointercancel', areaHoldEnd);
 // --- Prevent Pinch Zoom During Timer/Inspection/Popup ---
 // Block multi-touch gestures when timer is active or popup is showing
 function isZoomBlocked() {
-    return running || inspectionOn || holding || pendingResult !== null;
+    // Include fullMode to block zoom during full screen mode
+    return running || inspectionOn || holding || pendingResult !== null || fullMode;
 }
 
 // Dynamic viewport zoom control
@@ -425,6 +426,9 @@ function setZoomLock(locked) {
             viewport.setAttribute('content', 'width=device-width,initial-scale=1');
         }
     }
+    // Block touch scrolling during locked state
+    document.body.style.touchAction = locked ? 'none' : '';
+    document.body.style.overflow = locked ? 'hidden' : '';
 }
 
 document.addEventListener('touchstart', (e) => {
@@ -435,8 +439,8 @@ document.addEventListener('touchstart', (e) => {
 }, { passive: false });
 
 document.addEventListener('touchmove', (e) => {
-    // Prevent pinch zoom during timing/inspection/popup
-    if (e.touches.length > 1 && isZoomBlocked()) {
+    // Prevent pinch zoom and scroll during timing/inspection/popup/fullMode
+    if (isZoomBlocked()) {
         e.preventDefault();
     }
 }, { passive: false });
