@@ -85,6 +85,39 @@
 
 ---
 
+## 🎯 前端事件處理
+
+### Time Check Window (成績確認視窗)
+
+計時結束後會顯示確認視窗，使用以下技術防止誤觸：
+
+| 機制 | 說明 |
+|------|------|
+| **Pointer Events** | 統一使用 `pointerdown/pointerup` 取代分散的 touch/mouse 事件 |
+| **100ms 延遲保護** | `pointerdown` 必須發生在 popup 顯示後 100ms 才算有效 |
+| **事件隔離** | popup 使用 `stopPropagation()` 防止事件冒泡到 body |
+
+```javascript
+// 核心邏輯
+const POPUP_POINTER_DELAY = 100; // ms
+function isPopupClickValid() {
+    return Date.now() - popupShowTime > POPUP_POINTER_DELAY;
+}
+```
+
+### Full Mode (全螢幕模式)
+
+按下「開始檢查」(I) 後進入 Full Mode：
+
+| 功能 | 實作 |
+|------|------|
+| **整體按鈕** | 整個 body 都是 start/stop 按鈕（除了 `<button>` 元素） |
+| **縮放阻止** | `viewport` 設為 `maximum-scale=1,user-scalable=no` |
+| **滾動阻止** | `touch-action: none` + `overflow: hidden` |
+| **touchmove 攔截** | 在 `isZoomBlocked()` 為 true 時阻止所有 touchmove |
+
+---
+
 ## 🚀 部署流程
 
 ### 前端 (GitHub Pages)
@@ -122,4 +155,4 @@ git push origin main  # 自動部署
 | Google Sheets (Frontend) | ✅ 公開 (含暱稱) |
 
 ---
-*文件更新日期: 2025-12-25*
+*文件更新日期: 2026-01-29*
