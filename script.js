@@ -467,7 +467,9 @@ const resultDNFBtn = document.getElementById('resultDNF');
 
 function showResultPopup(ms, scramble) {
     pendingResult = { ms: ms, scramble: scramble };
-    popupShowTime = Date.now(); // Track when popup appeared
+    // Reset touch tracking - popup just appeared, no valid touches yet
+    popupTouchValid = false;
+    popupTouchStartedValid = false;
     popupTimeEl.textContent = fmt(ms);
     resultPopup.classList.remove('hidden');
 
